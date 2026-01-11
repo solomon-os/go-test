@@ -4,12 +4,13 @@ A Go application that detects infrastructure drift between AWS EC2 instances and
 
 ## Features
 
-- **Drift Detection**: Compares AWS EC2 instances against Terraform state files
+- **Drift Detection**: Compares AWS EC2 instances against Terraform state/HCL files
 - **Multiple Attribute Support**: Checks instance type, AMI, security groups, tags, and more
 - **Nested Field Comparison**: Supports nested attributes like `root_block_device.volume_size`
 - **Concurrent Processing**: Handles multiple instances concurrently using Go's concurrency primitives
 - **Multiple Output Formats**: Supports JSON, table, and human-readable text output
-- **Flexible CLI**: Specify which attributes to check and which instances to scan
+- **HCL & State File Support**: Parses both `.tfstate` and `.tf` files
+- **Environment Variable Support**: Loads AWS credentials from `.env` file
 
 ## Project Structure
 
@@ -17,26 +18,36 @@ A Go application that detects infrastructure drift between AWS EC2 instances and
 .
 ├── cmd/
 │   └── drift-detector/
-│       └── main.go          # CLI entry point
+│       └── main.go              # CLI entry point
 ├── internal/
 │   ├── aws/
-│   │   ├── ec2.go           # AWS EC2 client
+│   │   ├── ec2.go               # AWS EC2 client
 │   │   └── ec2_test.go
+│   ├── cli/
+│   │   ├── cli.go               # CLI commands
+│   │   └── cli_test.go
 │   ├── drift/
-│   │   ├── detector.go      # Drift detection engine
+│   │   ├── detector.go          # Drift detection engine
 │   │   └── detector_test.go
+│   ├── logger/
+│   │   └── logger.go            # Structured logging
 │   ├── models/
-│   │   └── instance.go      # Data models
+│   │   └── instance.go          # Data models
 │   ├── reporter/
-│   │   ├── reporter.go      # Output formatting
+│   │   ├── reporter.go          # Output formatting
 │   │   └── reporter_test.go
 │   └── terraform/
-│       ├── parser.go        # Terraform state parser
-│       └── parser_test.go
+│       ├── parser.go            # Terraform state parser
+│       ├── parser_test.go
+│       ├── hcl.go               # HCL (.tf) parser
+│       └── hcl_test.go
+├── scripts/
+│   └── create-aws-user.sh       # Create IAM user with minimal permissions
 ├── testdata/
-│   ├── terraform.tfstate    # Sample Terraform state
-│   ├── aws_ec2_response.json # Sample AWS response
-│   └── main.tf              # Sample Terraform config
+│   ├── terraform.tfstate        # Sample Terraform state
+│   ├── aws_ec2_response.json    # Sample AWS response
+│   └── main.tf                  # Sample Terraform config
+├── .env.example                 # Example environment variables
 ├── go.mod
 ├── go.sum
 └── README.md
@@ -45,21 +56,65 @@ A Go application that detects infrastructure drift between AWS EC2 instances and
 ## Requirements
 
 - Go 1.21 or later
-- AWS credentials configured (for live AWS queries)
-- Terraform state file (`.tfstate` or `.json`)
+- AWS credentials with `ec2:DescribeInstances` permission
+- Terraform state file (`.tfstate`) or HCL file (`.tf`)
 
 ## Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/solomon-os/go-test.git
 cd go-test
 
-# Install dependencies
 go mod tidy
 
-# Build the application
 go build -o drift-detector ./cmd/drift-detector
+```
+
+## AWS Setup
+
+### Required IAM Permission
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "ec2:DescribeInstances",
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+### Option 1: Use the setup script
+
+```bash
+# Requires AWS CLI configured with admin credentials
+./scripts/create-aws-user.sh
+```
+
+This creates an IAM user with minimal permissions and outputs credentials for your `.env` file.
+
+### Option 2: Manual setup
+
+1. Create IAM user in AWS Console
+2. Attach policy with `ec2:DescribeInstances` permission
+3. Generate access keys
+
+### Configure Credentials
+
+Create a `.env` file in the project root:
+
+```bash
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=your-secret-key
+```
+
+Or use AWS CLI:
+
+```bash
+aws configure
 ```
 
 ## Usage
@@ -69,6 +124,9 @@ go build -o drift-detector ./cmd/drift-detector
 ```bash
 # Check all instances in a Terraform state file
 ./drift-detector --tf-state terraform.tfstate --region us-east-1
+
+# Check using HCL file
+./drift-detector --tf-state main.tf --region us-east-1
 
 # Check specific instances
 ./drift-detector --tf-state terraform.tfstate -i i-123456,i-789012
@@ -106,7 +164,7 @@ go build -o drift-detector ./cmd/drift-detector
 
 | Flag | Short | Description | Default |
 |------|-------|-------------|---------|
-| `--tf-state` | `-t` | Path to Terraform state file | (required) |
+| `--tf-state` | `-t` | Path to Terraform state or HCL file | (required) |
 | `--region` | `-r` | AWS region | us-east-1 |
 | `--instances` | `-i` | Instance IDs to check (comma-separated) | all in state |
 | `--attributes` | `-a` | Attributes to check (comma-separated) | all default |
@@ -114,8 +172,6 @@ go build -o drift-detector ./cmd/drift-detector
 | `--timeout` | | Timeout for AWS API calls | 30s |
 
 ## Supported Attributes
-
-The following attributes can be checked for drift:
 
 | Attribute | Description |
 |-----------|-------------|
@@ -146,9 +202,6 @@ Instance: i-0abc123def456789a
     - instance_type:
         AWS:       t2.small
         Terraform: t2.micro
-    - tags:
-        AWS:       {Name=web-server-01, Environment=production, Team=platform, CostCenter=12345}
-        Terraform: {Name=web-server-01, Environment=production, Team=platform}
 
 Instance: i-0def456789abc123b
   Status: No drift detected
@@ -158,16 +211,6 @@ Summary
 Total instances checked: 2
 Instances with drift:    1
 Instances without drift: 1
-```
-
-### Table Format
-```
-INSTANCE ID              DRIFT DETECTED  DRIFTED ATTRIBUTES
------------              --------------  ------------------
-i-0abc123def456789a      Yes             instance_type, tags
-i-0def456789abc123b      No              -
-
-Summary: 1/2 instances with drift
 ```
 
 ### JSON Format
@@ -200,63 +243,44 @@ go test ./...
 # Run tests with coverage
 go test -cover ./...
 
+# Run tests with verbose output
+go test -v ./...
+
 # Generate coverage report
 go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out -o coverage.html
-
-# Run tests with verbose output
-go test -v ./...
 ```
+
+### Test Coverage
+
+| Package | Coverage |
+|---------|----------|
+| internal/aws | 87.5% |
+| internal/cli | 93.9% |
+| internal/drift | 84.2% |
+| internal/reporter | 100% |
+| internal/terraform | 85.8% |
 
 ## Design Decisions
 
 ### Architecture
 
-1. **Modular Design**: The application is split into distinct packages (`aws`, `terraform`, `drift`, `reporter`) for separation of concerns and testability.
+1. **Modular Design**: The application is split into distinct packages (`aws`, `terraform`, `drift`, `reporter`, `logger`) for separation of concerns and testability.
 
-2. **Interface-Based AWS Client**: The AWS EC2 client is defined as an interface, allowing easy mocking in tests without requiring actual AWS credentials.
+2. **Interface-Based Design**: AWS client, parser, detector, and reporter are defined as interfaces, allowing easy mocking in tests.
 
-3. **Concurrent Processing**: Multiple instances are processed concurrently using goroutines and channels, improving performance for large-scale drift detection.
+3. **Concurrent Processing**: Multiple instances are processed concurrently using goroutines and channels.
 
-4. **Flexible Attribute System**: Attributes are specified as dot-notation paths (e.g., `root_block_device.volume_size`), supporting both top-level and nested fields.
+4. **Structured Logging**: Uses Go's `log/slog` for structured, leveled logging.
+
+5. **Environment Variable Support**: Uses `godotenv` to load `.env` files automatically.
 
 ### Trade-offs
 
-1. **State File vs HCL Parsing**: The current implementation focuses on Terraform state files (JSON format) rather than raw HCL. This approach:
-   - Provides accurate representation of deployed resources
-   - Is simpler to implement and more reliable
-   - May miss resources not yet applied
+1. **Order-Independent Comparison**: Security groups and tags are compared without considering order, which is correct for AWS resources.
 
-2. **Order-Independent Comparison**: Security groups and tags are compared without considering order, which is the correct behavior for these AWS resources but may not be desired in all cases.
-
-3. **Shallow Block Device Comparison**: Only root block device is compared; additional EBS volumes are not currently supported.
-
-## Future Improvements
-
-1. **HCL Parsing**: Add support for parsing `.tf` files directly using the HashiCorp HCL library
-
-2. **Additional Resources**: Extend support to other AWS resources (RDS, S3, Lambda, etc.)
-
-3. **Historical Tracking**: Store drift detection results over time for trend analysis
-
-4. **Remediation Suggestions**: Generate Terraform code to fix detected drift
-
-5. **CI/CD Integration**: Add GitHub Actions workflow for automated drift detection
-
-6. **Webhook Notifications**: Send alerts to Slack, PagerDuty, etc. when drift is detected
-
-7. **AWS Organizations Support**: Scan multiple AWS accounts concurrently
-
-8. **Custom Comparators**: Allow users to define custom comparison logic for specific attributes
+2. **Shallow Block Device Comparison**: Only root block device is compared; additional EBS volumes are not currently supported.
 
 ## License
 
 MIT License
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request

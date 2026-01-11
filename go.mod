@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.26.1
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.141.0
 	github.com/hashicorp/hcl/v2 v2.24.0
+	github.com/joho/godotenv v1.5.1
 	github.com/spf13/cobra v1.8.0
 	github.com/zclconf/go-cty v1.17.0
 )
