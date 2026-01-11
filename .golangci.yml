@@ -1,0 +1,192 @@
+version: "2"
+
+run:
+  # Timeout for analysis
+  timeout: 5m
+  # Include test files
+  tests: true
+  # Go version to use for analysis
+  go: "1.23"
+
+linters:
+  # Use standard linters as default
+  default: standard
+  # Enable additional linters
+  enable:
+    - bodyclose
+    - copyloopvar
+    - dogsled
+    - dupl
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - fatcontext
+    - forbidigo
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - nakedret
+    - nilerr
+    - nilnil
+    - noctx
+    - prealloc
+    - predeclared
+    - revive
+    - staticcheck
+    - testifylint
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - wastedassign
+    - whitespace
+
+  settings:
+    errcheck:
+      # Check for blank identifier assignment
+      check-blank: true
+      # Check type assertions
+      check-type-assertions: true
+
+    goconst:
+      # Minimum string length to report
+      min-len: 3
+      # Minimum occurrences to report
+      min-occurrences: 3
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - hugeParam
+
+    gocyclo:
+      # Minimum complexity to report
+      min-complexity: 15
+
+    godot:
+      # Comments to check
+      scope: declarations
+      # Check periods
+      period: true
+      # Check capitalization
+      capital: true
+
+    govet:
+      # Enable all analyzers
+      enable-all: true
+      disable:
+        - fieldalignment
+
+    misspell:
+      locale: US
+
+    nakedret:
+      # Maximum function length for naked returns
+      max-func-lines: 30
+
+    prealloc:
+      # Suggest prealloc in simple loops only
+      simple: true
+      # Suggest prealloc in for-range loops
+      range-loops: true
+
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: var-declaration
+        - name: var-naming
+
+    staticcheck:
+      checks:
+        - all
+        - -SA1019  # Using deprecated functions (handle case by case)
+
+    unparam:
+      # Check exported functions
+      check-exported: false
+
+  exclusions:
+    # Predefined exclusion presets
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+    # Warn about unused exclusions
+    warn-unused: true
+    # Custom exclusion rules
+    rules:
+      # Exclude some linters from running on tests files
+      - path: _test\.go
+        linters:
+          - dupl
+          - goconst
+          - gosec
+          - errcheck
+          - unparam
+
+      # Exclude generated files
+      - path: \.pb\.go$
+        linters:
+          - all
+
+      # Exclude mock files
+      - path: mock_.*\.go$
+        linters:
+          - all
+
+      # Allow dot imports in tests
+      - path: _test\.go
+        text: "dot-imports"
+
+    # Paths to exclude from analysis
+    paths:
+      - vendor
+      - third_party
+      - testdata
+      - examples
+      - ".*\\.pb\\.go$"
+      - ".*/mock_.*\\.go$"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+  settings:
+    gofmt:
+      simplify: true
+
+    goimports:
+      local-prefixes: []
+
+output:
+  # Sort results by file, line, then column
+  sort-order:
+    - file
+    - linter

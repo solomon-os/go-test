@@ -1,0 +1,184 @@
+{
+  "Reservations": [
+    {
+      "ReservationId": "r-0abc123456789def0",
+      "OwnerId": "123456789012",
+      "Instances": [
+        {
+          "InstanceId": "i-0abc123def456789a",
+          "ImageId": "ami-0123456789abcdef0",
+          "InstanceType": "t2.small",
+          "KeyName": "production-key",
+          "LaunchTime": "2024-01-15T10:30:00Z",
+          "Placement": {
+            "AvailabilityZone": "us-east-1a",
+            "Tenancy": "default"
+          },
+          "Monitoring": {
+            "State": "enabled"
+          },
+          "SubnetId": "subnet-12345678",
+          "VpcId": "vpc-12345678",
+          "PrivateIpAddress": "10.0.1.100",
+          "PublicIpAddress": "54.123.45.67",
+          "State": {
+            "Code": 16,
+            "Name": "running"
+          },
+          "EbsOptimized": false,
+          "SecurityGroups": [
+            {
+              "GroupId": "sg-0123456789abcdef0",
+              "GroupName": "web-sg"
+            },
+            {
+              "GroupId": "sg-0987654321fedcba0",
+              "GroupName": "common-sg"
+            }
+          ],
+          "IamInstanceProfile": {
+            "Arn": "arn:aws:iam::123456789012:instance-profile/WebServerRole",
+            "Id": "AIPA1234567890EXAMPLE"
+          },
+          "Tags": [
+            {"Key": "Name", "Value": "web-server-01"},
+            {"Key": "Environment", "Value": "production"},
+            {"Key": "Team", "Value": "platform"},
+            {"Key": "CostCenter", "Value": "12345"}
+          ],
+          "RootDeviceName": "/dev/xvda",
+          "BlockDeviceMappings": [
+            {
+              "DeviceName": "/dev/xvda",
+              "Ebs": {
+                "VolumeId": "vol-0123456789abcdef0",
+                "Status": "attached",
+                "AttachTime": "2024-01-15T10:30:00Z",
+                "DeleteOnTermination": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ReservationId": "r-0def456789abc123b",
+      "OwnerId": "123456789012",
+      "Instances": [
+        {
+          "InstanceId": "i-0def456789abc123b",
+          "ImageId": "ami-0123456789abcdef0",
+          "InstanceType": "t3.medium",
+          "KeyName": "production-key",
+          "LaunchTime": "2024-01-15T11:00:00Z",
+          "Placement": {
+            "AvailabilityZone": "us-east-1b",
+            "Tenancy": "default"
+          },
+          "Monitoring": {
+            "State": "enabled"
+          },
+          "SubnetId": "subnet-87654321",
+          "VpcId": "vpc-12345678",
+          "PrivateIpAddress": "10.0.2.100",
+          "PublicIpAddress": "54.234.56.78",
+          "State": {
+            "Code": 16,
+            "Name": "running"
+          },
+          "EbsOptimized": true,
+          "SecurityGroups": [
+            {
+              "GroupId": "sg-1111111111111111",
+              "GroupName": "api-sg"
+            },
+            {
+              "GroupId": "sg-2222222222222222",
+              "GroupName": "common-sg"
+            }
+          ],
+          "IamInstanceProfile": {
+            "Arn": "arn:aws:iam::123456789012:instance-profile/APIServerRole",
+            "Id": "AIPA0987654321EXAMPLE"
+          },
+          "Tags": [
+            {"Key": "Name", "Value": "api-server-01"},
+            {"Key": "Environment", "Value": "production"},
+            {"Key": "Team", "Value": "backend"}
+          ],
+          "RootDeviceName": "/dev/xvda",
+          "BlockDeviceMappings": [
+            {
+              "DeviceName": "/dev/xvda",
+              "Ebs": {
+                "VolumeId": "vol-0987654321fedcba0",
+                "Status": "attached",
+                "AttachTime": "2024-01-15T11:00:00Z",
+                "DeleteOnTermination": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ReservationId": "r-0ghi789012jkl345c",
+      "OwnerId": "123456789012",
+      "Instances": [
+        {
+          "InstanceId": "i-0ghi789012jkl345c",
+          "ImageId": "ami-0fedcba9876543210",
+          "InstanceType": "r5.xlarge",
+          "KeyName": "database-key",
+          "LaunchTime": "2024-01-10T08:00:00Z",
+          "Placement": {
+            "AvailabilityZone": "us-east-1a",
+            "Tenancy": "default"
+          },
+          "Monitoring": {
+            "State": "enabled"
+          },
+          "SubnetId": "subnet-11223344",
+          "VpcId": "vpc-12345678",
+          "PrivateIpAddress": "10.0.3.100",
+          "State": {
+            "Code": 16,
+            "Name": "running"
+          },
+          "EbsOptimized": true,
+          "SecurityGroups": [
+            {
+              "GroupId": "sg-3333333333333333",
+              "GroupName": "database-sg"
+            },
+            {
+              "GroupId": "sg-4444444444444444",
+              "GroupName": "monitoring-sg"
+            }
+          ],
+          "IamInstanceProfile": {
+            "Arn": "arn:aws:iam::123456789012:instance-profile/DatabaseRole",
+            "Id": "AIPA5555555555EXAMPLE"
+          },
+          "Tags": [
+            {"Key": "Name", "Value": "database-server-01"},
+            {"Key": "Environment", "Value": "production"},
+            {"Key": "Team", "Value": "data"}
+          ],
+          "RootDeviceName": "/dev/xvda",
+          "BlockDeviceMappings": [
+            {
+              "DeviceName": "/dev/xvda",
+              "Ebs": {
+                "VolumeId": "vol-5555555555555555",
+                "Status": "attached",
+                "AttachTime": "2024-01-10T08:00:00Z",
+                "DeleteOnTermination": false
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
