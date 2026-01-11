@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
-// mockEC2Client implements EC2Client for testing
+// mockEC2Client implements EC2Client for testing.
 type mockEC2Client struct {
 	DescribeInstancesFunc func(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
 }
@@ -300,7 +300,7 @@ func TestConvertEC2Instance_NilFields(t *testing.T) {
 		// All other fields nil
 	}
 
-	result := convertEC2Instance(instance)
+	result := convertEC2Instance(&instance)
 
 	if result.InstanceID != "i-nil" {
 		t.Errorf("InstanceID = %s, want i-nil", result.InstanceID)
@@ -376,7 +376,7 @@ func TestConvertEC2Instance_MonitoringStates(t *testing.T) {
 				InstanceId: aws.String("i-test"),
 				Monitoring: &types.Monitoring{State: tt.state},
 			}
-			result := convertEC2Instance(instance)
+			result := convertEC2Instance(&instance)
 			if result.Monitoring != tt.want {
 				t.Errorf("Monitoring = %v, want %v", result.Monitoring, tt.want)
 			}

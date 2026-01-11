@@ -91,7 +91,7 @@ func (d *Detector) DetectMultiple(ctx context.Context, awsInstances, tfInstances
 			case <-ctx.Done():
 				results <- models.DriftResult{
 					InstanceID: id,
-					Error:      "context cancelled",
+					Error:      "context canceled",
 				}
 				return
 			default:
@@ -133,7 +133,7 @@ func (d *Detector) DetectMultiple(ctx context.Context, awsInstances, tfInstances
 	return report
 }
 
-func (d *Detector) getAttributeValues(aws, tf *models.EC2Instance, attr string) (interface{}, interface{}, error) {
+func (d *Detector) getAttributeValues(aws, tf *models.EC2Instance, attr string) (awsVal, tfVal interface{}, err error) {
 	parts := strings.Split(attr, ".")
 
 	awsValue, err := d.extractValue(aws, parts)
@@ -157,16 +157,16 @@ func (d *Detector) extractValue(instance *models.EC2Instance, path []string) (in
 	fieldMap := map[string]func(*models.EC2Instance) interface{}{
 		"instance_type":        func(i *models.EC2Instance) interface{} { return i.InstanceType },
 		"ami":                  func(i *models.EC2Instance) interface{} { return i.AMI },
-		"availability_zone":   func(i *models.EC2Instance) interface{} { return i.AvailabilityZone },
-		"subnet_id":           func(i *models.EC2Instance) interface{} { return i.SubnetID },
-		"vpc_id":              func(i *models.EC2Instance) interface{} { return i.VpcID },
-		"private_ip":          func(i *models.EC2Instance) interface{} { return i.PrivateIP },
-		"public_ip":           func(i *models.EC2Instance) interface{} { return i.PublicIP },
-		"key_name":            func(i *models.EC2Instance) interface{} { return i.KeyName },
-		"security_groups":     func(i *models.EC2Instance) interface{} { return i.SecurityGroups },
-		"tags":                func(i *models.EC2Instance) interface{} { return i.Tags },
-		"ebs_optimized":       func(i *models.EC2Instance) interface{} { return i.EBSOptimized },
-		"monitoring":          func(i *models.EC2Instance) interface{} { return i.Monitoring },
+		"availability_zone":    func(i *models.EC2Instance) interface{} { return i.AvailabilityZone },
+		"subnet_id":            func(i *models.EC2Instance) interface{} { return i.SubnetID },
+		"vpc_id":               func(i *models.EC2Instance) interface{} { return i.VpcID },
+		"private_ip":           func(i *models.EC2Instance) interface{} { return i.PrivateIP },
+		"public_ip":            func(i *models.EC2Instance) interface{} { return i.PublicIP },
+		"key_name":             func(i *models.EC2Instance) interface{} { return i.KeyName },
+		"security_groups":      func(i *models.EC2Instance) interface{} { return i.SecurityGroups },
+		"tags":                 func(i *models.EC2Instance) interface{} { return i.Tags },
+		"ebs_optimized":        func(i *models.EC2Instance) interface{} { return i.EBSOptimized },
+		"monitoring":           func(i *models.EC2Instance) interface{} { return i.Monitoring },
 		"iam_instance_profile": func(i *models.EC2Instance) interface{} { return i.IAMInstanceProfile },
 	}
 

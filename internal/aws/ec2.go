@@ -53,7 +53,7 @@ func (c *Client) GetInstance(ctx context.Context, instanceID string) (*models.EC
 		return nil, fmt.Errorf("instance %s not found", instanceID)
 	}
 
-	return convertEC2Instance(output.Reservations[0].Instances[0]), nil
+	return convertEC2Instance(&output.Reservations[0].Instances[0]), nil
 }
 
 // GetInstances retrieves multiple EC2 instances by their IDs.
@@ -69,27 +69,27 @@ func (c *Client) GetInstances(ctx context.Context, instanceIDs []string) ([]*mod
 
 	var instances []*models.EC2Instance
 	for _, reservation := range output.Reservations {
-		for _, instance := range reservation.Instances {
-			instances = append(instances, convertEC2Instance(instance))
+		for i := range reservation.Instances {
+			instances = append(instances, convertEC2Instance(&reservation.Instances[i]))
 		}
 	}
 
 	return instances, nil
 }
 
-func convertEC2Instance(instance types.Instance) *models.EC2Instance {
+func convertEC2Instance(instance *types.Instance) *models.EC2Instance {
 	ec2Inst := &models.EC2Instance{
-		InstanceID:       derefString(instance.InstanceId),
-		InstanceType:     string(instance.InstanceType),
-		AMI:              derefString(instance.ImageId),
-		SubnetID:         derefString(instance.SubnetId),
-		VpcID:            derefString(instance.VpcId),
-		PrivateIP:        derefString(instance.PrivateIpAddress),
-		PublicIP:         derefString(instance.PublicIpAddress),
-		KeyName:          derefString(instance.KeyName),
-		EBSOptimized:     derefBool(instance.EbsOptimized),
-		Tags:             make(map[string]string),
-		SecurityGroups:   make([]string, 0),
+		InstanceID:     derefString(instance.InstanceId),
+		InstanceType:   string(instance.InstanceType),
+		AMI:            derefString(instance.ImageId),
+		SubnetID:       derefString(instance.SubnetId),
+		VpcID:          derefString(instance.VpcId),
+		PrivateIP:      derefString(instance.PrivateIpAddress),
+		PublicIP:       derefString(instance.PublicIpAddress),
+		KeyName:        derefString(instance.KeyName),
+		EBSOptimized:   derefBool(instance.EbsOptimized),
+		Tags:           make(map[string]string),
+		SecurityGroups: make([]string, 0),
 	}
 
 	if instance.Placement != nil {

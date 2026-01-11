@@ -19,10 +19,10 @@ func NewParser() *Parser {
 	return &Parser{}
 }
 
-// TerraformState represents the structure of a Terraform state file.
-type TerraformState struct {
-	Version   int              `json:"version"`
-	Resources []StateResource  `json:"resources"`
+// State represents the structure of a Terraform state file.
+type State struct {
+	Version   int             `json:"version"`
+	Resources []StateResource `json:"resources"`
 }
 
 // StateResource represents a resource in the Terraform state.
@@ -40,22 +40,22 @@ type StateInstance struct {
 
 // EC2Attributes represents the attributes of an EC2 instance in Terraform state.
 type EC2Attributes struct {
-	ID                   string                 `json:"id"`
-	AMI                  string                 `json:"ami"`
-	InstanceType         string                 `json:"instance_type"`
-	AvailabilityZone     string                 `json:"availability_zone"`
-	SubnetID             string                 `json:"subnet_id"`
-	VpcSecurityGroupIDs  []string               `json:"vpc_security_group_ids"`
-	SecurityGroups       []string               `json:"security_groups"`
-	KeyName              string                 `json:"key_name"`
-	PrivateIP            string                 `json:"private_ip"`
-	PublicIP             string                 `json:"public_ip"`
-	EBSOptimized         bool                   `json:"ebs_optimized"`
-	Monitoring           bool                   `json:"monitoring"`
-	IAMInstanceProfile   string                 `json:"iam_instance_profile"`
-	Tags                 map[string]string      `json:"tags"`
-	TagsAll              map[string]string      `json:"tags_all"`
-	RootBlockDevice      []RootBlockDeviceAttr  `json:"root_block_device"`
+	ID                  string                `json:"id"`
+	AMI                 string                `json:"ami"`
+	InstanceType        string                `json:"instance_type"`
+	AvailabilityZone    string                `json:"availability_zone"`
+	SubnetID            string                `json:"subnet_id"`
+	VpcSecurityGroupIDs []string              `json:"vpc_security_group_ids"`
+	SecurityGroups      []string              `json:"security_groups"`
+	KeyName             string                `json:"key_name"`
+	PrivateIP           string                `json:"private_ip"`
+	PublicIP            string                `json:"public_ip"`
+	EBSOptimized        bool                  `json:"ebs_optimized"`
+	Monitoring          bool                  `json:"monitoring"`
+	IAMInstanceProfile  string                `json:"iam_instance_profile"`
+	Tags                map[string]string     `json:"tags"`
+	TagsAll             map[string]string     `json:"tags_all"`
+	RootBlockDevice     []RootBlockDeviceAttr `json:"root_block_device"`
 }
 
 // RootBlockDeviceAttr represents root block device attributes.
@@ -80,7 +80,7 @@ func (p *Parser) ParseStateFile(filePath string) (map[string]*models.EC2Instance
 
 // ParseStateJSON parses Terraform state JSON data.
 func (p *Parser) ParseStateJSON(data []byte) (map[string]*models.EC2Instance, error) {
-	var state TerraformState
+	var state State
 	if err := json.Unmarshal(data, &state); err != nil {
 		return nil, fmt.Errorf("failed to parse state JSON: %w", err)
 	}

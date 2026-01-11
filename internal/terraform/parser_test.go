@@ -241,7 +241,7 @@ func TestParser_ParseStateFile(t *testing.T) {
 		]
 	}`
 
-	if err := os.WriteFile(statePath, []byte(stateContent), 0644); err != nil {
+	if err := os.WriteFile(statePath, []byte(stateContent), 0o644); err != nil {
 		t.Fatalf("Failed to create temp state file: %v", err)
 	}
 
@@ -302,7 +302,7 @@ func TestParser_ParseFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			path := filepath.Join(tmpDir, tt.filename)
-			if err := os.WriteFile(path, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(path, []byte(tt.content), 0o644); err != nil {
 				t.Fatalf("Failed to create temp file: %v", err)
 			}
 

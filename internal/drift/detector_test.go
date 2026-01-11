@@ -255,7 +255,7 @@ func TestDetector_DetectMultiple_ContextCancelled(t *testing.T) {
 	d := NewDetector([]string{"instance_type"})
 	report := d.DetectMultiple(ctx, awsInstances, tfInstances)
 
-	// Should still get a result (either cancelled or completed before cancellation)
+	// Should still get a result (either canceled or completed before cancellation)
 	if len(report.Results) != 1 {
 		t.Errorf("Results count = %d, want 1", len(report.Results))
 	}

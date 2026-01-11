@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -26,61 +27,61 @@ var (
 	timeout     time.Duration
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "drift-detector",
-	Short: "Detect infrastructure drift between AWS EC2 instances and Terraform",
-	Long: `A tool to detect configuration drift between AWS EC2 instances
+var (
+	setupOnce sync.Once
+	rootCmd   = &cobra.Command{
+		Use:   "drift-detector",
+		Short: "Detect infrastructure drift between AWS EC2 instances and Terraform",
+		Long: `A tool to detect configuration drift between AWS EC2 instances
 and their Terraform state/configuration files.
 
 It compares the actual EC2 instance configuration in AWS with the expected
 configuration defined in Terraform and reports any differences.`,
-	RunE: runDetector,
-}
+		RunE: runDetector,
+	}
 
-// detectCmd provides a subcommand for single instance detection
-var detectCmd = &cobra.Command{
-	Use:   "detect [instance-id]",
-	Short: "Detect drift for a single instance",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runSingleDetect,
-}
+	detectCmd = &cobra.Command{
+		Use:   "detect [instance-id]",
+		Short: "Detect drift for a single instance",
+		Args:  cobra.ExactArgs(1),
+		RunE:  runSingleDetect,
+	}
 
-// listAttrsCmd lists available attributes
-var listAttrsCmd = &cobra.Command{
-	Use:   "list-attributes",
-	Short: "List available attributes for drift detection",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Available attributes for drift detection:")
-		fmt.Println(strings.Repeat("-", 40))
-		for _, attr := range drift.DefaultAttributes {
-			fmt.Printf("  - %s\n", attr)
-		}
-		fmt.Println("\nUse --attributes or -a flag to specify which attributes to check.")
-		fmt.Println("If not specified, all default attributes will be checked.")
-	},
-}
+	listAttrsCmd = &cobra.Command{
+		Use:   "list-attributes",
+		Short: "List available attributes for drift detection",
+		Run:   runListAttributes,
+	}
+)
 
-func init() {
+func setup() {
 	rootCmd.Flags().StringVarP(&tfStatePath, "tf-state", "t", "", "Path to Terraform state file (required)")
 	rootCmd.Flags().StringVarP(&region, "region", "r", "us-east-1", "AWS region")
 	rootCmd.Flags().StringSliceVarP(&instanceIDs, "instances", "i", nil, "Instance IDs to check (comma-separated, or checks all in state)")
 	rootCmd.Flags().StringSliceVarP(&attributes, "attributes", "a", nil, "Attributes to check for drift (comma-separated)")
 	rootCmd.Flags().StringVarP(&outputFmt, "output", "o", "text", "Output format: text, table, json")
 	rootCmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout for AWS API calls")
-	_ = rootCmd.MarkFlagRequired("tf-state")
+	must(rootCmd.MarkFlagRequired("tf-state"))
 
 	rootCmd.AddCommand(detectCmd)
 	detectCmd.Flags().StringVarP(&tfStatePath, "tf-state", "t", "", "Path to Terraform state file (required)")
 	detectCmd.Flags().StringVarP(&region, "region", "r", "us-east-1", "AWS region")
 	detectCmd.Flags().StringSliceVarP(&attributes, "attributes", "a", nil, "Attributes to check")
 	detectCmd.Flags().StringVarP(&outputFmt, "output", "o", "text", "Output format")
-	_ = detectCmd.MarkFlagRequired("tf-state")
+	must(detectCmd.MarkFlagRequired("tf-state"))
 
 	rootCmd.AddCommand(listAttrsCmd)
 }
 
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 // Run executes the CLI application.
 func Run() error {
+	setupOnce.Do(setup)
 	return rootCmd.Execute()
 }
 
@@ -158,4 +159,14 @@ func runSingleDetect(cmd *cobra.Command, args []string) error {
 
 	rep := reporter.New(os.Stdout, reporter.Format(outputFmt))
 	return rep.ReportSingle(result)
+}
+
+func runListAttributes(cmd *cobra.Command, args []string) {
+	_, _ = fmt.Fprintln(os.Stdout, "Available attributes for drift detection:")
+	_, _ = fmt.Fprintln(os.Stdout, strings.Repeat("-", 40))
+	for _, attr := range drift.DefaultAttributes {
+		_, _ = fmt.Fprintf(os.Stdout, "  - %s\n", attr)
+	}
+	_, _ = fmt.Fprintln(os.Stdout, "\nUse --attributes or -a flag to specify which attributes to check.")
+	_, _ = fmt.Fprintln(os.Stdout, "If not specified, all default attributes will be checked.")
 }
