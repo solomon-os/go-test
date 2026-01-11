@@ -20,13 +20,18 @@ const (
 	FormatText  Format = "text"
 )
 
+// DriftReporter defines the interface for outputting drift reports.
+type DriftReporter interface {
+	Report(report *models.DriftReport) error
+	ReportSingle(result *models.DriftResult) error
+}
+
 // Reporter outputs drift detection results in various formats.
 type Reporter struct {
 	writer io.Writer
 	format Format
 }
 
-// New creates a new Reporter with the specified writer and format.
 func New(w io.Writer, format Format) *Reporter {
 	return &Reporter{
 		writer: w,
@@ -34,7 +39,6 @@ func New(w io.Writer, format Format) *Reporter {
 	}
 }
 
-// Report outputs the drift report in the configured format.
 func (r *Reporter) Report(report *models.DriftReport) error {
 	switch r.format {
 	case FormatJSON:
@@ -48,7 +52,6 @@ func (r *Reporter) Report(report *models.DriftReport) error {
 	}
 }
 
-// ReportSingle outputs a single drift result.
 func (r *Reporter) ReportSingle(result *models.DriftResult) error {
 	report := &models.DriftReport{
 		TotalInstances:   1,

@@ -12,7 +12,6 @@ import (
 	"github.com/solomon-os/go-test/internal/models"
 )
 
-// DefaultAttributes defines the default attributes to check for drift.
 var DefaultAttributes = []string{
 	"instance_type",
 	"ami",
@@ -29,21 +28,26 @@ var DefaultAttributes = []string{
 	"root_block_device.encrypted",
 }
 
-// Detector performs drift detection between AWS and Terraform configurations.
-type Detector struct {
+// Detector defines the interface for drift detection operations.
+type Detector interface {
+	Detect(awsInstance, tfInstance *models.EC2Instance) *models.DriftResult
+	DetectMultiple(ctx context.Context, awsInstances, tfInstances map[string]*models.EC2Instance) *models.DriftReport
+	GetAttributes() []string
+}
+
+// DefaultDetector performs drift detection between AWS and Terraform configurations.
+type DefaultDetector struct {
 	attributes []string
 }
 
-// NewDetector creates a new drift detector with specified attributes to check.
-func NewDetector(attributes []string) *Detector {
+func NewDetector(attributes []string) *DefaultDetector {
 	if len(attributes) == 0 {
 		attributes = DefaultAttributes
 	}
-	return &Detector{attributes: attributes}
+	return &DefaultDetector{attributes: attributes}
 }
 
-// Detect compares AWS and Terraform configurations and returns drift results.
-func (d *Detector) Detect(awsInstance, tfInstance *models.EC2Instance) *models.DriftResult {
+func (d *DefaultDetector) Detect(awsInstance, tfInstance *models.EC2Instance) *models.DriftResult {
 	result := &models.DriftResult{
 		InstanceID:   awsInstance.InstanceID,
 		HasDrift:     false,
@@ -69,8 +73,7 @@ func (d *Detector) Detect(awsInstance, tfInstance *models.EC2Instance) *models.D
 	return result
 }
 
-// DetectMultiple performs drift detection on multiple instances concurrently.
-func (d *Detector) DetectMultiple(ctx context.Context, awsInstances, tfInstances map[string]*models.EC2Instance) *models.DriftReport {
+func (d *DefaultDetector) DetectMultiple(ctx context.Context, awsInstances, tfInstances map[string]*models.EC2Instance) *models.DriftReport {
 	report := &models.DriftReport{
 		TotalInstances: len(awsInstances),
 		Results:        make([]models.DriftResult, 0),
@@ -133,7 +136,7 @@ func (d *Detector) DetectMultiple(ctx context.Context, awsInstances, tfInstances
 	return report
 }
 
-func (d *Detector) getAttributeValues(aws, tf *models.EC2Instance, attr string) (awsVal, tfVal interface{}, err error) {
+func (d *DefaultDetector) getAttributeValues(aws, tf *models.EC2Instance, attr string) (awsVal, tfVal interface{}, err error) {
 	parts := strings.Split(attr, ".")
 
 	awsValue, err := d.extractValue(aws, parts)
@@ -149,7 +152,7 @@ func (d *Detector) getAttributeValues(aws, tf *models.EC2Instance, attr string) 
 	return awsValue, tfValue, nil
 }
 
-func (d *Detector) extractValue(instance *models.EC2Instance, path []string) (interface{}, error) {
+func (d *DefaultDetector) extractValue(instance *models.EC2Instance, path []string) (interface{}, error) {
 	if len(path) == 0 {
 		return nil, fmt.Errorf("empty path")
 	}
@@ -189,7 +192,7 @@ func (d *Detector) extractValue(instance *models.EC2Instance, path []string) (in
 	return getter(instance), nil
 }
 
-func (d *Detector) extractBlockDeviceValue(bd *models.BlockDevice, field string) (interface{}, error) {
+func (d *DefaultDetector) extractBlockDeviceValue(bd *models.BlockDevice, field string) (interface{}, error) {
 	switch field {
 	case "volume_size":
 		return bd.VolumeSize, nil
@@ -208,7 +211,7 @@ func (d *Detector) extractBlockDeviceValue(bd *models.BlockDevice, field string)
 	}
 }
 
-func (d *Detector) valuesEqual(a, b interface{}) bool {
+func (d *DefaultDetector) valuesEqual(a, b interface{}) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -230,7 +233,7 @@ func (d *Detector) valuesEqual(a, b interface{}) bool {
 	return reflect.DeepEqual(a, b)
 }
 
-func (d *Detector) slicesEqual(a, b interface{}) bool {
+func (d *DefaultDetector) slicesEqual(a, b interface{}) bool {
 	aSlice, ok := a.([]string)
 	if !ok {
 		return reflect.DeepEqual(a, b)
@@ -259,7 +262,7 @@ func (d *Detector) slicesEqual(a, b interface{}) bool {
 	return true
 }
 
-func (d *Detector) mapsEqual(a, b interface{}) bool {
+func (d *DefaultDetector) mapsEqual(a, b interface{}) bool {
 	aMap, ok := a.(map[string]string)
 	if !ok {
 		return reflect.DeepEqual(a, b)
@@ -281,7 +284,6 @@ func (d *Detector) mapsEqual(a, b interface{}) bool {
 	return true
 }
 
-// GetAttributes returns the list of attributes being checked.
-func (d *Detector) GetAttributes() []string {
+func (d *DefaultDetector) GetAttributes() []string {
 	return d.attributes
 }

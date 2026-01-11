@@ -4,6 +4,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -18,6 +19,22 @@ import (
 	"github.com/solomon-os/go-test/internal/terraform"
 )
 
+// AWSClient defines the interface for AWS EC2 operations.
+type AWSClient interface {
+	GetInstance(ctx context.Context, instanceID string) (*models.EC2Instance, error)
+	GetInstances(ctx context.Context, instanceIDs []string) ([]*models.EC2Instance, error)
+}
+
+// App holds the CLI application dependencies.
+type App struct {
+	Parser       terraform.StateParser
+	Detector     drift.Detector
+	Reporter     reporter.DriftReporter
+	AWSClient    AWSClient
+	Output       io.Writer
+	NewAWSClient func(ctx context.Context, region string) (AWSClient, error)
+}
+
 var (
 	tfStatePath string
 	region      string
@@ -28,8 +45,9 @@ var (
 )
 
 var (
-	setupOnce sync.Once
-	rootCmd   = &cobra.Command{
+	setupOnce  sync.Once
+	defaultApp *App
+	rootCmd    = &cobra.Command{
 		Use:   "drift-detector",
 		Short: "Detect infrastructure drift between AWS EC2 instances and Terraform",
 		Long: `A tool to detect configuration drift between AWS EC2 instances
@@ -54,7 +72,18 @@ configuration defined in Terraform and reports any differences.`,
 	}
 )
 
+func newDefaultApp() *App {
+	return &App{
+		Output: os.Stdout,
+		NewAWSClient: func(ctx context.Context, region string) (AWSClient, error) {
+			return aws.NewClient(ctx, region)
+		},
+	}
+}
+
 func setup() {
+	defaultApp = newDefaultApp()
+
 	rootCmd.Flags().StringVarP(&tfStatePath, "tf-state", "t", "", "Path to Terraform state file (required)")
 	rootCmd.Flags().StringVarP(&region, "region", "r", "us-east-1", "AWS region")
 	rootCmd.Flags().StringSliceVarP(&instanceIDs, "instances", "i", nil, "Instance IDs to check (comma-separated, or checks all in state)")
@@ -79,7 +108,6 @@ func must(err error) {
 	}
 }
 
-// Run executes the CLI application.
 func Run() error {
 	setupOnce.Do(setup)
 	return rootCmd.Execute()
@@ -89,8 +117,8 @@ func runDetector(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	tfParser := terraform.NewParser()
-	tfInstances, err := tfParser.ParseFile(tfStatePath)
+	parser := getParser()
+	tfInstances, err := parser.ParseFile(tfStatePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse Terraform state: %w", err)
 	}
@@ -106,7 +134,7 @@ func runDetector(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	awsClient, err := aws.NewClient(ctx, region)
+	awsClient, err := getAWSClient(ctx, region)
 	if err != nil {
 		return fmt.Errorf("failed to create AWS client: %w", err)
 	}
@@ -121,10 +149,10 @@ func runDetector(cmd *cobra.Command, args []string) error {
 		awsInstanceMap[inst.InstanceID] = inst
 	}
 
-	detector := drift.NewDetector(attributes)
+	detector := getDetector()
 	report := detector.DetectMultiple(ctx, awsInstanceMap, tfInstances)
 
-	rep := reporter.New(os.Stdout, reporter.Format(outputFmt))
+	rep := getReporter()
 	return rep.Report(report)
 }
 
@@ -133,18 +161,18 @@ func runSingleDetect(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	tfParser := terraform.NewParser()
-	tfInstances, err := tfParser.ParseFile(tfStatePath)
+	parser := getParser()
+	tfInstances, err := parser.ParseFile(tfStatePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse Terraform state: %w", err)
 	}
 
-	tfInstance, err := tfParser.GetInstanceByID(tfInstances, instanceID)
+	tfInstance, err := parser.GetInstanceByID(tfInstances, instanceID)
 	if err != nil {
 		return err
 	}
 
-	awsClient, err := aws.NewClient(ctx, region)
+	awsClient, err := getAWSClient(ctx, region)
 	if err != nil {
 		return fmt.Errorf("failed to create AWS client: %w", err)
 	}
@@ -154,19 +182,48 @@ func runSingleDetect(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to fetch AWS instance: %w", err)
 	}
 
-	detector := drift.NewDetector(attributes)
+	detector := getDetector()
 	result := detector.Detect(awsInstance, tfInstance)
 
-	rep := reporter.New(os.Stdout, reporter.Format(outputFmt))
+	rep := getReporter()
 	return rep.ReportSingle(result)
 }
 
 func runListAttributes(cmd *cobra.Command, args []string) {
-	_, _ = fmt.Fprintln(os.Stdout, "Available attributes for drift detection:")
-	_, _ = fmt.Fprintln(os.Stdout, strings.Repeat("-", 40))
+	out := defaultApp.Output
+	_, _ = fmt.Fprintln(out, "Available attributes for drift detection:")
+	_, _ = fmt.Fprintln(out, strings.Repeat("-", 40))
 	for _, attr := range drift.DefaultAttributes {
-		_, _ = fmt.Fprintf(os.Stdout, "  - %s\n", attr)
+		_, _ = fmt.Fprintf(out, "  - %s\n", attr)
 	}
-	_, _ = fmt.Fprintln(os.Stdout, "\nUse --attributes or -a flag to specify which attributes to check.")
-	_, _ = fmt.Fprintln(os.Stdout, "If not specified, all default attributes will be checked.")
+	_, _ = fmt.Fprintln(out, "\nUse --attributes or -a flag to specify which attributes to check.")
+	_, _ = fmt.Fprintln(out, "If not specified, all default attributes will be checked.")
+}
+
+func getParser() terraform.StateParser {
+	if defaultApp.Parser != nil {
+		return defaultApp.Parser
+	}
+	return terraform.NewParser()
+}
+
+func getDetector() drift.Detector {
+	if defaultApp.Detector != nil {
+		return defaultApp.Detector
+	}
+	return drift.NewDetector(attributes)
+}
+
+func getReporter() reporter.DriftReporter {
+	if defaultApp.Reporter != nil {
+		return defaultApp.Reporter
+	}
+	return reporter.New(defaultApp.Output, reporter.Format(outputFmt))
+}
+
+func getAWSClient(ctx context.Context, region string) (AWSClient, error) {
+	if defaultApp.AWSClient != nil {
+		return defaultApp.AWSClient, nil
+	}
+	return defaultApp.NewAWSClient(ctx, region)
 }

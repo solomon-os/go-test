@@ -21,7 +21,6 @@ type Client struct {
 	ec2Client EC2Client
 }
 
-// NewClient creates a new AWS EC2 client with default configuration.
 func NewClient(ctx context.Context, region string) (*Client, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {
@@ -33,12 +32,10 @@ func NewClient(ctx context.Context, region string) (*Client, error) {
 	}, nil
 }
 
-// NewClientWithEC2 creates a new Client with a custom EC2 client (useful for testing).
 func NewClientWithEC2(client EC2Client) *Client {
 	return &Client{ec2Client: client}
 }
 
-// GetInstance retrieves EC2 instance configuration by instance ID.
 func (c *Client) GetInstance(ctx context.Context, instanceID string) (*models.EC2Instance, error) {
 	input := &ec2.DescribeInstancesInput{
 		InstanceIds: []string{instanceID},
@@ -56,7 +53,6 @@ func (c *Client) GetInstance(ctx context.Context, instanceID string) (*models.EC
 	return convertEC2Instance(&output.Reservations[0].Instances[0]), nil
 }
 
-// GetInstances retrieves multiple EC2 instances by their IDs.
 func (c *Client) GetInstances(ctx context.Context, instanceIDs []string) ([]*models.EC2Instance, error) {
 	input := &ec2.DescribeInstancesInput{
 		InstanceIds: instanceIDs,

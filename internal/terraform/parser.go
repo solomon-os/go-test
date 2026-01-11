@@ -11,10 +11,17 @@ import (
 	"github.com/solomon-os/go-test/internal/models"
 )
 
+// StateParser defines the interface for parsing Terraform state.
+type StateParser interface {
+	ParseFile(filePath string) (map[string]*models.EC2Instance, error)
+	ParseStateFile(filePath string) (map[string]*models.EC2Instance, error)
+	ParseStateJSON(data []byte) (map[string]*models.EC2Instance, error)
+	GetInstanceByID(instances map[string]*models.EC2Instance, instanceID string) (*models.EC2Instance, error)
+}
+
 // Parser handles parsing of Terraform configuration files.
 type Parser struct{}
 
-// NewParser creates a new Terraform parser.
 func NewParser() *Parser {
 	return &Parser{}
 }
@@ -68,7 +75,6 @@ type RootBlockDeviceAttr struct {
 	Throughput          int    `json:"throughput"`
 }
 
-// ParseStateFile parses a Terraform state file and extracts EC2 instances.
 func (p *Parser) ParseStateFile(filePath string) (map[string]*models.EC2Instance, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -78,7 +84,6 @@ func (p *Parser) ParseStateFile(filePath string) (map[string]*models.EC2Instance
 	return p.ParseStateJSON(data)
 }
 
-// ParseStateJSON parses Terraform state JSON data.
 func (p *Parser) ParseStateJSON(data []byte) (map[string]*models.EC2Instance, error) {
 	var state State
 	if err := json.Unmarshal(data, &state); err != nil {
@@ -150,7 +155,6 @@ func (p *Parser) parseEC2Attributes(data json.RawMessage) (*models.EC2Instance, 
 	return instance, nil
 }
 
-// ParseFile automatically detects the file type and parses accordingly.
 func (p *Parser) ParseFile(filePath string) (map[string]*models.EC2Instance, error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
 
@@ -162,7 +166,6 @@ func (p *Parser) ParseFile(filePath string) (map[string]*models.EC2Instance, err
 	}
 }
 
-// GetInstanceByID retrieves a specific instance from parsed data.
 func (p *Parser) GetInstanceByID(instances map[string]*models.EC2Instance, instanceID string) (*models.EC2Instance, error) {
 	instance, ok := instances[instanceID]
 	if !ok {
