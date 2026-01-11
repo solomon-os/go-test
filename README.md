@@ -41,13 +41,12 @@ A Go application that detects infrastructure drift between AWS EC2 instances and
 │       ├── parser_test.go
 │       ├── hcl.go               # HCL (.tf) parser
 │       └── hcl_test.go
-├── scripts/
-│   └── create-aws-user.sh       # Create IAM user with minimal permissions
 ├── testdata/
 │   ├── terraform.tfstate        # Sample Terraform state
 │   ├── aws_ec2_response.json    # Sample AWS response
 │   └── main.tf                  # Sample Terraform config
 ├── .env.example                 # Example environment variables
+├── Makefile
 ├── go.mod
 ├── go.sum
 └── README.md
@@ -65,9 +64,7 @@ A Go application that detects infrastructure drift between AWS EC2 instances and
 git clone https://github.com/solomon-os/go-test.git
 cd go-test
 
-go mod tidy
-
-go build -o drift-detector ./cmd/drift-detector
+make build
 ```
 
 ## AWS Setup
@@ -87,16 +84,7 @@ go build -o drift-detector ./cmd/drift-detector
 }
 ```
 
-### Option 1: Use the setup script
-
-```bash
-# Requires AWS CLI configured with admin credentials
-./scripts/create-aws-user.sh
-```
-
-This creates an IAM user with minimal permissions and outputs credentials for your `.env` file.
-
-### Option 2: Manual setup
+### Setup Steps
 
 1. Create IAM user in AWS Console
 2. Attach policy with `ec2:DescribeInstances` permission
@@ -123,41 +111,41 @@ aws configure
 
 ```bash
 # Check all instances in a Terraform state file
-./drift-detector --tf-state terraform.tfstate --region us-east-1
+./main --tf-state terraform.tfstate --region us-east-1
 
 # Check using HCL file
-./drift-detector --tf-state main.tf --region us-east-1
+./main --tf-state main.tf --region us-east-1
 
 # Check specific instances
-./drift-detector --tf-state terraform.tfstate -i i-123456,i-789012
+./main --tf-state terraform.tfstate -i i-123456,i-789012
 
 # Output in JSON format
-./drift-detector --tf-state terraform.tfstate -o json
+./main --tf-state terraform.tfstate -o json
 
 # Output in table format
-./drift-detector --tf-state terraform.tfstate -o table
+./main --tf-state terraform.tfstate -o table
 ```
 
 ### Check Specific Attributes
 
 ```bash
 # Only check instance type and AMI
-./drift-detector --tf-state terraform.tfstate -a instance_type,ami
+./main --tf-state terraform.tfstate -a instance_type,ami
 
 # Check nested attributes
-./drift-detector --tf-state terraform.tfstate -a root_block_device.volume_size,root_block_device.encrypted
+./main --tf-state terraform.tfstate -a root_block_device.volume_size,root_block_device.encrypted
 ```
 
 ### Single Instance Detection
 
 ```bash
-./drift-detector detect i-0abc123def456789a --tf-state terraform.tfstate
+./main detect i-0abc123def456789a --tf-state terraform.tfstate
 ```
 
 ### List Available Attributes
 
 ```bash
-./drift-detector list-attributes
+./main list-attributes
 ```
 
 ### Command Line Options
@@ -237,18 +225,10 @@ Instances without drift: 1
 ## Running Tests
 
 ```bash
-# Run all tests
-go test ./...
-
-# Run tests with coverage
-go test -cover ./...
-
-# Run tests with verbose output
-go test -v ./...
-
-# Generate coverage report
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out -o coverage.html
+make test     # Run all tests
+make cover    # Run tests with coverage report
+make lint     # Run linter
+make clean    # Clean build artifacts
 ```
 
 ### Test Coverage
@@ -260,6 +240,7 @@ go tool cover -html=coverage.out -o coverage.html
 | internal/drift | 84.2% |
 | internal/reporter | 100% |
 | internal/terraform | 85.8% |
+| **Total** | **86.2%** |
 
 ## Design Decisions
 
