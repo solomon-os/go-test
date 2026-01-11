@@ -235,13 +235,19 @@ func runSingleDetect(cmd *cobra.Command, args []string) error {
 
 func runListAttributes(cmd *cobra.Command, args []string) {
 	out := defaultApp.Output
-	_, _ = fmt.Fprintln(out, "Available attributes for drift detection:")
-	_, _ = fmt.Fprintln(out, strings.Repeat("-", 40))
+	writef(out, "Available attributes for drift detection:\n")
+	writef(out, "%s\n", strings.Repeat("-", 40))
 	for _, attr := range drift.DefaultAttributes {
-		_, _ = fmt.Fprintf(out, "  - %s\n", attr)
+		writef(out, "  - %s\n", attr)
 	}
-	_, _ = fmt.Fprintln(out, "\nUse --attributes or -a flag to specify which attributes to check.")
-	_, _ = fmt.Fprintln(out, "If not specified, all default attributes will be checked.")
+	writef(out, "\nUse --attributes or -a flag to specify which attributes to check.\n")
+	writef(out, "If not specified, all default attributes will be checked.\n")
+}
+
+func writef(w io.Writer, format string, args ...any) {
+	if _, err := fmt.Fprintf(w, format, args...); err != nil {
+		logger.Warn("failed to write output", "error", err)
+	}
 }
 
 func getParser() terraform.StateParser {

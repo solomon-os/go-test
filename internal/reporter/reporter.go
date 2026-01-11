@@ -8,8 +8,15 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/solomon-os/go-test/internal/logger"
 	"github.com/solomon-os/go-test/internal/models"
 )
+
+func writef(w io.Writer, format string, args ...any) {
+	if _, err := fmt.Fprintf(w, format, args...); err != nil {
+		logger.Warn("failed to write output", "error", err)
+	}
+}
 
 // Format represents the output format for reports.
 type Format string
@@ -73,8 +80,8 @@ func (r *Reporter) reportJSON(report *models.DriftReport) error {
 func (r *Reporter) reportTable(report *models.DriftReport) error {
 	w := tabwriter.NewWriter(r.writer, 0, 0, 2, ' ', 0)
 
-	_, _ = fmt.Fprintf(w, "INSTANCE ID\tDRIFT DETECTED\tDRIFTED ATTRIBUTES\n")
-	_, _ = fmt.Fprintf(w, "-----------\t--------------\t------------------\n")
+	writef(w, "INSTANCE ID\tDRIFT DETECTED\tDRIFTED ATTRIBUTES\n")
+	writef(w, "-----------\t--------------\t------------------\n")
 
 	for _, result := range report.Results {
 		driftStatus := "No"
@@ -95,10 +102,10 @@ func (r *Reporter) reportTable(report *models.DriftReport) error {
 			attrs = fmt.Sprintf("ERROR: %s", result.Error)
 		}
 
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", result.InstanceID, driftStatus, attrs)
+		writef(w, "%s\t%s\t%s\n", result.InstanceID, driftStatus, attrs)
 	}
 
-	_, _ = fmt.Fprintf(w, "\n")
+	writef(w, "\n")
 	_, _ = fmt.Fprintf(
 		w,
 		"Summary: %d/%d instances with drift\n",
@@ -110,41 +117,41 @@ func (r *Reporter) reportTable(report *models.DriftReport) error {
 }
 
 func (r *Reporter) reportText(report *models.DriftReport) error {
-	_, _ = fmt.Fprintf(r.writer, "EC2 Drift Detection Report\n")
-	_, _ = fmt.Fprintf(r.writer, "==========================\n\n")
+	writef(r.writer, "EC2 Drift Detection Report\n")
+	writef(r.writer, "==========================\n\n")
 
 	for _, result := range report.Results {
-		_, _ = fmt.Fprintf(r.writer, "Instance: %s\n", result.InstanceID)
+		writef(r.writer, "Instance: %s\n", result.InstanceID)
 
 		if result.Error != "" {
-			_, _ = fmt.Fprintf(r.writer, "  Error: %s\n\n", result.Error)
+			writef(r.writer, "  Error: %s\n\n", result.Error)
 			continue
 		}
 
 		if !result.HasDrift {
-			_, _ = fmt.Fprintf(r.writer, "  Status: No drift detected\n\n")
+			writef(r.writer, "  Status: No drift detected\n\n")
 			continue
 		}
 
-		_, _ = fmt.Fprintf(r.writer, "  Status: DRIFT DETECTED\n")
-		_, _ = fmt.Fprintf(r.writer, "  Drifted Attributes:\n")
+		writef(r.writer, "  Status: DRIFT DETECTED\n")
+		writef(r.writer, "  Drifted Attributes:\n")
 
 		for _, attr := range result.DriftedAttrs {
-			_, _ = fmt.Fprintf(r.writer, "    - %s:\n", attr.Path)
-			_, _ = fmt.Fprintf(r.writer, "        AWS:       %v\n", formatValue(attr.AWSValue))
+			writef(r.writer, "    - %s:\n", attr.Path)
+			writef(r.writer, "        AWS:       %v\n", formatValue(attr.AWSValue))
 			_, _ = fmt.Fprintf(
 				r.writer,
 				"        Terraform: %v\n",
 				formatValue(attr.TerraformValue),
 			)
 		}
-		_, _ = fmt.Fprintf(r.writer, "\n")
+		writef(r.writer, "\n")
 	}
 
-	_, _ = fmt.Fprintf(r.writer, "Summary\n")
-	_, _ = fmt.Fprintf(r.writer, "-------\n")
-	_, _ = fmt.Fprintf(r.writer, "Total instances checked: %d\n", report.TotalInstances)
-	_, _ = fmt.Fprintf(r.writer, "Instances with drift:    %d\n", report.DriftedInstances)
+	writef(r.writer, "Summary\n")
+	writef(r.writer, "-------\n")
+	writef(r.writer, "Total instances checked: %d\n", report.TotalInstances)
+	writef(r.writer, "Instances with drift:    %d\n", report.DriftedInstances)
 	_, _ = fmt.Fprintf(
 		r.writer,
 		"Instances without drift: %d\n",
