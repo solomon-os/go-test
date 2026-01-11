@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/joho/godotenv"
+
 	"github.com/solomon-os/go-test/internal/cli"
 )
 

@@ -19,7 +19,10 @@ type StateParser interface {
 	ParseStateJSON(data []byte) (map[string]*models.EC2Instance, error)
 	ParseHCLFile(filePath string) (map[string]*models.EC2Instance, error)
 	ParseHCL(data []byte, filename string) (map[string]*models.EC2Instance, error)
-	GetInstanceByID(instances map[string]*models.EC2Instance, instanceID string) (*models.EC2Instance, error)
+	GetInstanceByID(
+		instances map[string]*models.EC2Instance,
+		instanceID string,
+	) (*models.EC2Instance, error)
 }
 
 // Parser handles parsing of Terraform configuration files.
@@ -107,8 +110,18 @@ func (p *Parser) ParseStateJSON(data []byte) (map[string]*models.EC2Instance, er
 		for _, inst := range resource.Instances {
 			ec2Inst, err := p.parseEC2Attributes(inst.Attributes)
 			if err != nil {
-				logger.Error("failed to parse EC2 attributes", "resource", resource.Name, "error", err)
-				return nil, fmt.Errorf("failed to parse EC2 attributes for %s: %w", resource.Name, err)
+				logger.Error(
+					"failed to parse EC2 attributes",
+					"resource",
+					resource.Name,
+					"error",
+					err,
+				)
+				return nil, fmt.Errorf(
+					"failed to parse EC2 attributes for %s: %w",
+					resource.Name,
+					err,
+				)
 			}
 			instances[ec2Inst.InstanceID] = ec2Inst
 		}
@@ -179,7 +192,10 @@ func (p *Parser) ParseFile(filePath string) (map[string]*models.EC2Instance, err
 	}
 }
 
-func (p *Parser) GetInstanceByID(instances map[string]*models.EC2Instance, instanceID string) (*models.EC2Instance, error) {
+func (p *Parser) GetInstanceByID(
+	instances map[string]*models.EC2Instance,
+	instanceID string,
+) (*models.EC2Instance, error) {
 	instance, ok := instances[instanceID]
 	if !ok {
 		return nil, fmt.Errorf("instance %s not found in Terraform configuration", instanceID)

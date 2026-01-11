@@ -99,7 +99,12 @@ func (r *Reporter) reportTable(report *models.DriftReport) error {
 	}
 
 	_, _ = fmt.Fprintf(w, "\n")
-	_, _ = fmt.Fprintf(w, "Summary: %d/%d instances with drift\n", report.DriftedInstances, report.TotalInstances)
+	_, _ = fmt.Fprintf(
+		w,
+		"Summary: %d/%d instances with drift\n",
+		report.DriftedInstances,
+		report.TotalInstances,
+	)
 
 	return w.Flush()
 }
@@ -127,7 +132,11 @@ func (r *Reporter) reportText(report *models.DriftReport) error {
 		for _, attr := range result.DriftedAttrs {
 			_, _ = fmt.Fprintf(r.writer, "    - %s:\n", attr.Path)
 			_, _ = fmt.Fprintf(r.writer, "        AWS:       %v\n", formatValue(attr.AWSValue))
-			_, _ = fmt.Fprintf(r.writer, "        Terraform: %v\n", formatValue(attr.TerraformValue))
+			_, _ = fmt.Fprintf(
+				r.writer,
+				"        Terraform: %v\n",
+				formatValue(attr.TerraformValue),
+			)
 		}
 		_, _ = fmt.Fprintf(r.writer, "\n")
 	}
@@ -136,7 +145,11 @@ func (r *Reporter) reportText(report *models.DriftReport) error {
 	_, _ = fmt.Fprintf(r.writer, "-------\n")
 	_, _ = fmt.Fprintf(r.writer, "Total instances checked: %d\n", report.TotalInstances)
 	_, _ = fmt.Fprintf(r.writer, "Instances with drift:    %d\n", report.DriftedInstances)
-	_, _ = fmt.Fprintf(r.writer, "Instances without drift: %d\n", report.TotalInstances-report.DriftedInstances)
+	_, _ = fmt.Fprintf(
+		r.writer,
+		"Instances without drift: %d\n",
+		report.TotalInstances-report.DriftedInstances,
+	)
 
 	return nil
 }

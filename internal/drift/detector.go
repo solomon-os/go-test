@@ -32,7 +32,10 @@ var DefaultAttributes = []string{
 // Detector defines the interface for drift detection operations.
 type Detector interface {
 	Detect(awsInstance, tfInstance *models.EC2Instance) *models.DriftResult
-	DetectMultiple(ctx context.Context, awsInstances, tfInstances map[string]*models.EC2Instance) *models.DriftReport
+	DetectMultiple(
+		ctx context.Context,
+		awsInstances, tfInstances map[string]*models.EC2Instance,
+	) *models.DriftReport
 	GetAttributes() []string
 }
 
@@ -49,7 +52,13 @@ func NewDetector(attributes []string) *DefaultDetector {
 }
 
 func (d *DefaultDetector) Detect(awsInstance, tfInstance *models.EC2Instance) *models.DriftResult {
-	logger.Debug("detecting drift for instance", "instance_id", awsInstance.InstanceID, "attributes", len(d.attributes))
+	logger.Debug(
+		"detecting drift for instance",
+		"instance_id",
+		awsInstance.InstanceID,
+		"attributes",
+		len(d.attributes),
+	)
 	result := &models.DriftResult{
 		InstanceID:   awsInstance.InstanceID,
 		HasDrift:     false,
@@ -59,7 +68,15 @@ func (d *DefaultDetector) Detect(awsInstance, tfInstance *models.EC2Instance) *m
 	for _, attr := range d.attributes {
 		awsValue, tfValue, err := d.getAttributeValues(awsInstance, tfInstance, attr)
 		if err != nil {
-			logger.Debug("skipping attribute", "instance_id", awsInstance.InstanceID, "attribute", attr, "error", err)
+			logger.Debug(
+				"skipping attribute",
+				"instance_id",
+				awsInstance.InstanceID,
+				"attribute",
+				attr,
+				"error",
+				err,
+			)
 			continue
 		}
 
@@ -75,7 +92,13 @@ func (d *DefaultDetector) Detect(awsInstance, tfInstance *models.EC2Instance) *m
 	}
 
 	if result.HasDrift {
-		logger.Info("drift detected", "instance_id", awsInstance.InstanceID, "drifted_attributes", len(result.DriftedAttrs))
+		logger.Info(
+			"drift detected",
+			"instance_id",
+			awsInstance.InstanceID,
+			"drifted_attributes",
+			len(result.DriftedAttrs),
+		)
 	} else {
 		logger.Debug("no drift detected", "instance_id", awsInstance.InstanceID)
 	}
@@ -83,8 +106,17 @@ func (d *DefaultDetector) Detect(awsInstance, tfInstance *models.EC2Instance) *m
 	return result
 }
 
-func (d *DefaultDetector) DetectMultiple(ctx context.Context, awsInstances, tfInstances map[string]*models.EC2Instance) *models.DriftReport {
-	logger.Info("starting drift detection", "aws_instances", len(awsInstances), "tf_instances", len(tfInstances))
+func (d *DefaultDetector) DetectMultiple(
+	ctx context.Context,
+	awsInstances, tfInstances map[string]*models.EC2Instance,
+) *models.DriftReport {
+	logger.Info(
+		"starting drift detection",
+		"aws_instances",
+		len(awsInstances),
+		"tf_instances",
+		len(tfInstances),
+	)
 	report := &models.DriftReport{
 		TotalInstances: len(awsInstances),
 		Results:        make([]models.DriftResult, 0),
@@ -146,12 +178,21 @@ func (d *DefaultDetector) DetectMultiple(ctx context.Context, awsInstances, tfIn
 		return report.Results[i].InstanceID < report.Results[j].InstanceID
 	})
 
-	logger.Info("drift detection complete", "total", report.TotalInstances, "drifted", report.DriftedInstances)
+	logger.Info(
+		"drift detection complete",
+		"total",
+		report.TotalInstances,
+		"drifted",
+		report.DriftedInstances,
+	)
 
 	return report
 }
 
-func (d *DefaultDetector) getAttributeValues(aws, tf *models.EC2Instance, attr string) (awsVal, tfVal interface{}, err error) {
+func (d *DefaultDetector) getAttributeValues(
+	aws, tf *models.EC2Instance,
+	attr string,
+) (awsVal, tfVal interface{}, err error) {
 	parts := strings.Split(attr, ".")
 
 	awsValue, err := d.extractValue(aws, parts)
@@ -167,7 +208,10 @@ func (d *DefaultDetector) getAttributeValues(aws, tf *models.EC2Instance, attr s
 	return awsValue, tfValue, nil
 }
 
-func (d *DefaultDetector) extractValue(instance *models.EC2Instance, path []string) (interface{}, error) {
+func (d *DefaultDetector) extractValue(
+	instance *models.EC2Instance,
+	path []string,
+) (interface{}, error) {
 	if len(path) == 0 {
 		return nil, fmt.Errorf("empty path")
 	}
@@ -207,7 +251,10 @@ func (d *DefaultDetector) extractValue(instance *models.EC2Instance, path []stri
 	return getter(instance), nil
 }
 
-func (d *DefaultDetector) extractBlockDeviceValue(bd *models.BlockDevice, field string) (interface{}, error) {
+func (d *DefaultDetector) extractBlockDeviceValue(
+	bd *models.BlockDevice,
+	field string,
+) (interface{}, error) {
 	switch field {
 	case "volume_size":
 		return bd.VolumeSize, nil

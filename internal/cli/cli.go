@@ -85,16 +85,21 @@ func newDefaultApp() *App {
 func setup() {
 	defaultApp = newDefaultApp()
 
-	rootCmd.Flags().StringVarP(&tfStatePath, "tf-state", "t", "", "Path to Terraform state file (required)")
+	rootCmd.Flags().
+		StringVarP(&tfStatePath, "tf-state", "t", "", "Path to Terraform state file (required)")
 	rootCmd.Flags().StringVarP(&region, "region", "r", "us-east-1", "AWS region")
-	rootCmd.Flags().StringSliceVarP(&instanceIDs, "instances", "i", nil, "Instance IDs to check (comma-separated, or checks all in state)")
-	rootCmd.Flags().StringSliceVarP(&attributes, "attributes", "a", nil, "Attributes to check for drift (comma-separated)")
-	rootCmd.Flags().StringVarP(&outputFmt, "output", "o", "text", "Output format: text, table, json")
+	rootCmd.Flags().
+		StringSliceVarP(&instanceIDs, "instances", "i", nil, "Instance IDs to check (comma-separated, or checks all in state)")
+	rootCmd.Flags().
+		StringSliceVarP(&attributes, "attributes", "a", nil, "Attributes to check for drift (comma-separated)")
+	rootCmd.Flags().
+		StringVarP(&outputFmt, "output", "o", "text", "Output format: text, table, json")
 	rootCmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout for AWS API calls")
 	must(rootCmd.MarkFlagRequired("tf-state"))
 
 	rootCmd.AddCommand(detectCmd)
-	detectCmd.Flags().StringVarP(&tfStatePath, "tf-state", "t", "", "Path to Terraform state file (required)")
+	detectCmd.Flags().
+		StringVarP(&tfStatePath, "tf-state", "t", "", "Path to Terraform state file (required)")
 	detectCmd.Flags().StringVarP(&region, "region", "r", "us-east-1", "AWS region")
 	detectCmd.Flags().StringSliceVarP(&attributes, "attributes", "a", nil, "Attributes to check")
 	detectCmd.Flags().StringVarP(&outputFmt, "output", "o", "text", "Output format")
@@ -160,14 +165,26 @@ func runDetector(cmd *cobra.Command, args []string) error {
 	detector := getDetector()
 	report := detector.DetectMultiple(ctx, awsInstanceMap, tfInstances)
 
-	logger.Info("drift detection completed", "total", report.TotalInstances, "drifted", report.DriftedInstances)
+	logger.Info(
+		"drift detection completed",
+		"total",
+		report.TotalInstances,
+		"drifted",
+		report.DriftedInstances,
+	)
 	rep := getReporter()
 	return rep.Report(report)
 }
 
 func runSingleDetect(cmd *cobra.Command, args []string) error {
 	instanceID := args[0]
-	logger.Info("detecting drift for single instance", "instance_id", instanceID, "tf_state", tfStatePath)
+	logger.Info(
+		"detecting drift for single instance",
+		"instance_id",
+		instanceID,
+		"tf_state",
+		tfStatePath,
+	)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -180,7 +197,13 @@ func runSingleDetect(cmd *cobra.Command, args []string) error {
 
 	tfInstance, err := parser.GetInstanceByID(tfInstances, instanceID)
 	if err != nil {
-		logger.Error("instance not found in Terraform state", "instance_id", instanceID, "error", err)
+		logger.Error(
+			"instance not found in Terraform state",
+			"instance_id",
+			instanceID,
+			"error",
+			err,
+		)
 		return err
 	}
 
@@ -199,7 +222,13 @@ func runSingleDetect(cmd *cobra.Command, args []string) error {
 	detector := getDetector()
 	result := detector.Detect(awsInstance, tfInstance)
 
-	logger.Info("single instance drift detection completed", "instance_id", instanceID, "has_drift", result.HasDrift)
+	logger.Info(
+		"single instance drift detection completed",
+		"instance_id",
+		instanceID,
+		"has_drift",
+		result.HasDrift,
+	)
 	rep := getReporter()
 	return rep.ReportSingle(result)
 }

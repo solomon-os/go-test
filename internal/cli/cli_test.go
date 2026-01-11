@@ -20,7 +20,10 @@ type mockAWSClient struct {
 	getMultiErr error
 }
 
-func (m *mockAWSClient) GetInstance(ctx context.Context, instanceID string) (*models.EC2Instance, error) {
+func (m *mockAWSClient) GetInstance(
+	ctx context.Context,
+	instanceID string,
+) (*models.EC2Instance, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
@@ -31,7 +34,10 @@ func (m *mockAWSClient) GetInstance(ctx context.Context, instanceID string) (*mo
 	return inst, nil
 }
 
-func (m *mockAWSClient) GetInstances(ctx context.Context, instanceIDs []string) ([]*models.EC2Instance, error) {
+func (m *mockAWSClient) GetInstances(
+	ctx context.Context,
+	instanceIDs []string,
+) ([]*models.EC2Instance, error) {
 	if m.getMultiErr != nil {
 		return nil, m.getMultiErr
 	}

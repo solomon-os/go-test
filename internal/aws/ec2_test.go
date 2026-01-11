@@ -15,7 +15,11 @@ type mockEC2Client struct {
 	DescribeInstancesFunc func(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
 }
 
-func (m *mockEC2Client) DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error) {
+func (m *mockEC2Client) DescribeInstances(
+	ctx context.Context,
+	params *ec2.DescribeInstancesInput,
+	optFns ...func(*ec2.Options),
+) (*ec2.DescribeInstancesOutput, error) {
 	return m.DescribeInstancesFunc(ctx, params, optFns...)
 }
 
@@ -206,7 +210,11 @@ func TestClient_GetInstance_FullMapping(t *testing.T) {
 		{"Monitoring", instance.Monitoring, true},
 		{"SecurityGroups count", len(instance.SecurityGroups), 2},
 		{"Tags count", len(instance.Tags), 1},
-		{"IAMInstanceProfile", instance.IAMInstanceProfile, "arn:aws:iam::123:instance-profile/test"},
+		{
+			"IAMInstanceProfile",
+			instance.IAMInstanceProfile,
+			"arn:aws:iam::123:instance-profile/test",
+		},
 		{"RootBlockDevice.DeleteOnTermination", instance.RootBlockDevice.DeleteOnTermination, true},
 	}
 
@@ -235,13 +243,22 @@ func TestClient_GetInstances(t *testing.T) {
 				Reservations: []types.Reservation{
 					{
 						Instances: []types.Instance{
-							{InstanceId: aws.String("i-1"), InstanceType: types.InstanceTypeT2Micro},
-							{InstanceId: aws.String("i-2"), InstanceType: types.InstanceTypeT2Small},
+							{
+								InstanceId:   aws.String("i-1"),
+								InstanceType: types.InstanceTypeT2Micro,
+							},
+							{
+								InstanceId:   aws.String("i-2"),
+								InstanceType: types.InstanceTypeT2Small,
+							},
 						},
 					},
 					{
 						Instances: []types.Instance{
-							{InstanceId: aws.String("i-3"), InstanceType: types.InstanceTypeT2Medium},
+							{
+								InstanceId:   aws.String("i-3"),
+								InstanceType: types.InstanceTypeT2Medium,
+							},
 						},
 					},
 				},
@@ -286,7 +303,11 @@ func TestClient_GetInstances(t *testing.T) {
 			}
 
 			if !tt.wantErr && len(instances) != tt.wantCount {
-				t.Errorf("GetInstances() returned %d instances, want %d", len(instances), tt.wantCount)
+				t.Errorf(
+					"GetInstances() returned %d instances, want %d",
+					len(instances),
+					tt.wantCount,
+				)
 			}
 		})
 	}

@@ -6,9 +6,10 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/solomon-os/go-test/internal/logger"
 	"github.com/solomon-os/go-test/internal/models"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func (p *Parser) ParseHCLFile(filePath string) (map[string]*models.EC2Instance, error) {

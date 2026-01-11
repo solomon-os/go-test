@@ -133,7 +133,11 @@ func TestParser_ParseStateJSON(t *testing.T) {
 			}
 
 			if !tt.wantErr && len(instances) != tt.wantCount {
-				t.Errorf("ParseStateJSON() returned %d instances, want %d", len(instances), tt.wantCount)
+				t.Errorf(
+					"ParseStateJSON() returned %d instances, want %d",
+					len(instances),
+					tt.wantCount,
+				)
 			}
 		})
 	}
@@ -205,7 +209,11 @@ func TestParser_ParseStateJSON_AttributeMapping(t *testing.T) {
 		{"PublicIP", inst.PublicIP, "54.32.10.1"},
 		{"EBSOptimized", inst.EBSOptimized, true},
 		{"Monitoring", inst.Monitoring, true},
-		{"IAMInstanceProfile", inst.IAMInstanceProfile, "arn:aws:iam::123456789:instance-profile/role"},
+		{
+			"IAMInstanceProfile",
+			inst.IAMInstanceProfile,
+			"arn:aws:iam::123456789:instance-profile/role",
+		},
 		{"SecurityGroups count", len(inst.SecurityGroups), 2},
 		{"Tags count", len(inst.Tags), 2},
 		{"RootBlockDevice.VolumeSize", inst.RootBlockDevice.VolumeSize, 100},

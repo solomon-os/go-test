@@ -8,13 +8,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/solomon-os/go-test/internal/logger"
 	"github.com/solomon-os/go-test/internal/models"
 )
 
 // EC2Client defines the interface for EC2 operations.
 type EC2Client interface {
-	DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
+	DescribeInstances(
+		ctx context.Context,
+		params *ec2.DescribeInstancesInput,
+		optFns ...func(*ec2.Options),
+	) (*ec2.DescribeInstancesOutput, error)
 }
 
 // Client wraps the AWS EC2 client with helper methods.
@@ -61,7 +66,10 @@ func (c *Client) GetInstance(ctx context.Context, instanceID string) (*models.EC
 	return convertEC2Instance(&output.Reservations[0].Instances[0]), nil
 }
 
-func (c *Client) GetInstances(ctx context.Context, instanceIDs []string) ([]*models.EC2Instance, error) {
+func (c *Client) GetInstances(
+	ctx context.Context,
+	instanceIDs []string,
+) ([]*models.EC2Instance, error) {
 	logger.Debug("fetching multiple EC2 instances", "count", len(instanceIDs))
 	input := &ec2.DescribeInstancesInput{
 		InstanceIds: instanceIDs,
