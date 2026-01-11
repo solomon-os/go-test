@@ -246,7 +246,7 @@ make clean    # Clean build artifacts
 
 ### Architecture
 
-1. **Modular Design**: The application is split into distinct packages (`aws`, `terraform`, `drift`, `reporter`, `logger`) for separation of concerns and testability.
+1. **Modular Design**: The application is split into separate packages (`aws`, `terraform`, `drift`, `reporter`, `logger`) for separation of concerns and testability.
 
 2. **Interface-Based Design**: AWS client, parser, detector, and reporter are defined as interfaces, allowing easy mocking in tests.
 
