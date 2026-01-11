@@ -256,6 +256,8 @@ make clean    # Clean build artifacts
 
 5. **Environment Variable Support**: Uses `godotenv` to load `.env` files automatically.
 
+6. **Code Quality**: Uses `golangci-lint` with strict linting rules including `gofumpt`, `govet`, `staticcheck`, and more.
+
 ### Trade-offs
 
 1. **Order-Independent Comparison**: Security groups and tags are compared without considering order, which is correct for AWS resources.
