@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/solomon-os/go-test/internal/logger"
 	"github.com/solomon-os/go-test/internal/models"
 )
 
@@ -48,6 +49,7 @@ func NewDetector(attributes []string) *DefaultDetector {
 }
 
 func (d *DefaultDetector) Detect(awsInstance, tfInstance *models.EC2Instance) *models.DriftResult {
+	logger.Debug("detecting drift for instance", "instance_id", awsInstance.InstanceID, "attributes", len(d.attributes))
 	result := &models.DriftResult{
 		InstanceID:   awsInstance.InstanceID,
 		HasDrift:     false,
@@ -57,10 +59,12 @@ func (d *DefaultDetector) Detect(awsInstance, tfInstance *models.EC2Instance) *m
 	for _, attr := range d.attributes {
 		awsValue, tfValue, err := d.getAttributeValues(awsInstance, tfInstance, attr)
 		if err != nil {
+			logger.Debug("skipping attribute", "instance_id", awsInstance.InstanceID, "attribute", attr, "error", err)
 			continue
 		}
 
 		if !d.valuesEqual(awsValue, tfValue) {
+			logger.Debug("drift detected", "instance_id", awsInstance.InstanceID, "attribute", attr)
 			result.HasDrift = true
 			result.DriftedAttrs = append(result.DriftedAttrs, models.DriftedAttr{
 				Path:           attr,
@@ -70,10 +74,17 @@ func (d *DefaultDetector) Detect(awsInstance, tfInstance *models.EC2Instance) *m
 		}
 	}
 
+	if result.HasDrift {
+		logger.Info("drift detected", "instance_id", awsInstance.InstanceID, "drifted_attributes", len(result.DriftedAttrs))
+	} else {
+		logger.Debug("no drift detected", "instance_id", awsInstance.InstanceID)
+	}
+
 	return result
 }
 
 func (d *DefaultDetector) DetectMultiple(ctx context.Context, awsInstances, tfInstances map[string]*models.EC2Instance) *models.DriftReport {
+	logger.Info("starting drift detection", "aws_instances", len(awsInstances), "tf_instances", len(tfInstances))
 	report := &models.DriftReport{
 		TotalInstances: len(awsInstances),
 		Results:        make([]models.DriftResult, 0),
@@ -92,6 +103,7 @@ func (d *DefaultDetector) DetectMultiple(ctx context.Context, awsInstances, tfIn
 
 			select {
 			case <-ctx.Done():
+				logger.Warn("context canceled during drift detection", "instance_id", id)
 				results <- models.DriftResult{
 					InstanceID: id,
 					Error:      "context canceled",
@@ -102,6 +114,7 @@ func (d *DefaultDetector) DetectMultiple(ctx context.Context, awsInstances, tfIn
 
 			tfInst, ok := tfInstances[id]
 			if !ok {
+				logger.Warn("instance not found in Terraform state", "instance_id", id)
 				results <- models.DriftResult{
 					InstanceID: id,
 					HasDrift:   true,
@@ -132,6 +145,8 @@ func (d *DefaultDetector) DetectMultiple(ctx context.Context, awsInstances, tfIn
 	sort.Slice(report.Results, func(i, j int) bool {
 		return report.Results[i].InstanceID < report.Results[j].InstanceID
 	})
+
+	logger.Info("drift detection complete", "total", report.TotalInstances, "drifted", report.DriftedInstances)
 
 	return report
 }

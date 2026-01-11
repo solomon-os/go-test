@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/solomon-os/go-test/internal/logger"
 	"github.com/solomon-os/go-test/internal/models"
 )
 
@@ -22,11 +23,14 @@ type Client struct {
 }
 
 func NewClient(ctx context.Context, region string) (*Client, error) {
+	logger.Debug("creating AWS client", "region", region)
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {
+		logger.Error("failed to load AWS config", "error", err, "region", region)
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
+	logger.Info("AWS client created successfully", "region", region)
 	return &Client{
 		ec2Client: ec2.NewFromConfig(cfg),
 	}, nil
@@ -37,29 +41,35 @@ func NewClientWithEC2(client EC2Client) *Client {
 }
 
 func (c *Client) GetInstance(ctx context.Context, instanceID string) (*models.EC2Instance, error) {
+	logger.Debug("fetching EC2 instance", "instance_id", instanceID)
 	input := &ec2.DescribeInstancesInput{
 		InstanceIds: []string{instanceID},
 	}
 
 	output, err := c.ec2Client.DescribeInstances(ctx, input)
 	if err != nil {
+		logger.Error("failed to describe instance", "instance_id", instanceID, "error", err)
 		return nil, fmt.Errorf("failed to describe instance %s: %w", instanceID, err)
 	}
 
 	if len(output.Reservations) == 0 || len(output.Reservations[0].Instances) == 0 {
+		logger.Warn("instance not found", "instance_id", instanceID)
 		return nil, fmt.Errorf("instance %s not found", instanceID)
 	}
 
+	logger.Debug("successfully fetched EC2 instance", "instance_id", instanceID)
 	return convertEC2Instance(&output.Reservations[0].Instances[0]), nil
 }
 
 func (c *Client) GetInstances(ctx context.Context, instanceIDs []string) ([]*models.EC2Instance, error) {
+	logger.Debug("fetching multiple EC2 instances", "count", len(instanceIDs))
 	input := &ec2.DescribeInstancesInput{
 		InstanceIds: instanceIDs,
 	}
 
 	output, err := c.ec2Client.DescribeInstances(ctx, input)
 	if err != nil {
+		logger.Error("failed to describe instances", "error", err, "count", len(instanceIDs))
 		return nil, fmt.Errorf("failed to describe instances: %w", err)
 	}
 
@@ -70,6 +80,7 @@ func (c *Client) GetInstances(ctx context.Context, instanceIDs []string) ([]*mod
 		}
 	}
 
+	logger.Info("fetched EC2 instances", "requested", len(instanceIDs), "returned", len(instances))
 	return instances, nil
 }
 

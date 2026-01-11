@@ -14,6 +14,7 @@ import (
 
 	"github.com/solomon-os/go-test/internal/aws"
 	"github.com/solomon-os/go-test/internal/drift"
+	"github.com/solomon-os/go-test/internal/logger"
 	"github.com/solomon-os/go-test/internal/models"
 	"github.com/solomon-os/go-test/internal/reporter"
 	"github.com/solomon-os/go-test/internal/terraform"
@@ -110,20 +111,24 @@ func must(err error) {
 
 func Run() error {
 	setupOnce.Do(setup)
+	logger.Debug("starting drift-detector CLI")
 	return rootCmd.Execute()
 }
 
 func runDetector(cmd *cobra.Command, args []string) error {
+	logger.Info("running drift detection", "tf_state", tfStatePath, "region", region)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	parser := getParser()
 	tfInstances, err := parser.ParseFile(tfStatePath)
 	if err != nil {
+		logger.Error("failed to parse Terraform state", "path", tfStatePath, "error", err)
 		return fmt.Errorf("failed to parse Terraform state: %w", err)
 	}
 
 	if len(tfInstances) == 0 {
+		logger.Error("no EC2 instances found in Terraform state", "path", tfStatePath)
 		return fmt.Errorf("no EC2 instances found in Terraform state")
 	}
 
@@ -133,14 +138,17 @@ func runDetector(cmd *cobra.Command, args []string) error {
 			targetIDs = append(targetIDs, id)
 		}
 	}
+	logger.Debug("target instances", "count", len(targetIDs))
 
 	awsClient, err := getAWSClient(ctx, region)
 	if err != nil {
+		logger.Error("failed to create AWS client", "region", region, "error", err)
 		return fmt.Errorf("failed to create AWS client: %w", err)
 	}
 
 	awsInstances, err := awsClient.GetInstances(ctx, targetIDs)
 	if err != nil {
+		logger.Error("failed to fetch AWS instances", "error", err)
 		return fmt.Errorf("failed to fetch AWS instances: %w", err)
 	}
 
@@ -152,39 +160,46 @@ func runDetector(cmd *cobra.Command, args []string) error {
 	detector := getDetector()
 	report := detector.DetectMultiple(ctx, awsInstanceMap, tfInstances)
 
+	logger.Info("drift detection completed", "total", report.TotalInstances, "drifted", report.DriftedInstances)
 	rep := getReporter()
 	return rep.Report(report)
 }
 
 func runSingleDetect(cmd *cobra.Command, args []string) error {
 	instanceID := args[0]
+	logger.Info("detecting drift for single instance", "instance_id", instanceID, "tf_state", tfStatePath)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	parser := getParser()
 	tfInstances, err := parser.ParseFile(tfStatePath)
 	if err != nil {
+		logger.Error("failed to parse Terraform state", "path", tfStatePath, "error", err)
 		return fmt.Errorf("failed to parse Terraform state: %w", err)
 	}
 
 	tfInstance, err := parser.GetInstanceByID(tfInstances, instanceID)
 	if err != nil {
+		logger.Error("instance not found in Terraform state", "instance_id", instanceID, "error", err)
 		return err
 	}
 
 	awsClient, err := getAWSClient(ctx, region)
 	if err != nil {
+		logger.Error("failed to create AWS client", "region", region, "error", err)
 		return fmt.Errorf("failed to create AWS client: %w", err)
 	}
 
 	awsInstance, err := awsClient.GetInstance(ctx, instanceID)
 	if err != nil {
+		logger.Error("failed to fetch AWS instance", "instance_id", instanceID, "error", err)
 		return fmt.Errorf("failed to fetch AWS instance: %w", err)
 	}
 
 	detector := getDetector()
 	result := detector.Detect(awsInstance, tfInstance)
 
+	logger.Info("single instance drift detection completed", "instance_id", instanceID, "has_drift", result.HasDrift)
 	rep := getReporter()
 	return rep.ReportSingle(result)
 }

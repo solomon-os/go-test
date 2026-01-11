@@ -8,14 +8,17 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/solomon-os/go-test/internal/logger"
 	"github.com/solomon-os/go-test/internal/models"
 )
 
-// StateParser defines the interface for parsing Terraform state.
+// StateParser defines the interface for parsing Terraform state and HCL files.
 type StateParser interface {
 	ParseFile(filePath string) (map[string]*models.EC2Instance, error)
 	ParseStateFile(filePath string) (map[string]*models.EC2Instance, error)
 	ParseStateJSON(data []byte) (map[string]*models.EC2Instance, error)
+	ParseHCLFile(filePath string) (map[string]*models.EC2Instance, error)
+	ParseHCL(data []byte, filename string) (map[string]*models.EC2Instance, error)
 	GetInstanceByID(instances map[string]*models.EC2Instance, instanceID string) (*models.EC2Instance, error)
 }
 
@@ -76,8 +79,10 @@ type RootBlockDeviceAttr struct {
 }
 
 func (p *Parser) ParseStateFile(filePath string) (map[string]*models.EC2Instance, error) {
+	logger.Debug("reading Terraform state file", "path", filePath)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
+		logger.Error("failed to read state file", "path", filePath, "error", err)
 		return nil, fmt.Errorf("failed to read state file: %w", err)
 	}
 
@@ -85,8 +90,10 @@ func (p *Parser) ParseStateFile(filePath string) (map[string]*models.EC2Instance
 }
 
 func (p *Parser) ParseStateJSON(data []byte) (map[string]*models.EC2Instance, error) {
+	logger.Debug("parsing Terraform state JSON", "bytes", len(data))
 	var state State
 	if err := json.Unmarshal(data, &state); err != nil {
+		logger.Error("failed to parse state JSON", "error", err)
 		return nil, fmt.Errorf("failed to parse state JSON: %w", err)
 	}
 
@@ -100,12 +107,14 @@ func (p *Parser) ParseStateJSON(data []byte) (map[string]*models.EC2Instance, er
 		for _, inst := range resource.Instances {
 			ec2Inst, err := p.parseEC2Attributes(inst.Attributes)
 			if err != nil {
+				logger.Error("failed to parse EC2 attributes", "resource", resource.Name, "error", err)
 				return nil, fmt.Errorf("failed to parse EC2 attributes for %s: %w", resource.Name, err)
 			}
 			instances[ec2Inst.InstanceID] = ec2Inst
 		}
 	}
 
+	logger.Info("parsed Terraform state", "instance_count", len(instances))
 	return instances, nil
 }
 
@@ -157,11 +166,15 @@ func (p *Parser) parseEC2Attributes(data json.RawMessage) (*models.EC2Instance, 
 
 func (p *Parser) ParseFile(filePath string) (map[string]*models.EC2Instance, error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
+	logger.Debug("parsing Terraform file", "path", filePath, "extension", ext)
 
 	switch ext {
 	case ".tfstate", ".json":
 		return p.ParseStateFile(filePath)
+	case ".tf":
+		return p.ParseHCLFile(filePath)
 	default:
+		logger.Error("unsupported file type", "path", filePath, "extension", ext)
 		return nil, fmt.Errorf("unsupported file type: %s", ext)
 	}
 }

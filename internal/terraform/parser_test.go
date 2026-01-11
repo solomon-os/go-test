@@ -458,3 +458,243 @@ func TestParser_SecurityGroupsFallback(t *testing.T) {
 		}
 	})
 }
+
+func TestParser_ParseHCL(t *testing.T) {
+	tests := []struct {
+		name      string
+		hcl       string
+		wantCount int
+		wantErr   bool
+	}{
+		{
+			name: "valid HCL with one instance",
+			hcl: `
+resource "aws_instance" "web" {
+  ami           = "ami-0123456789"
+  instance_type = "t2.micro"
+
+  tags = {
+    Name = "web-server"
+  }
+}`,
+			wantCount: 1,
+			wantErr:   false,
+		},
+		{
+			name: "valid HCL with multiple instances",
+			hcl: `
+resource "aws_instance" "web" {
+  ami           = "ami-111"
+  instance_type = "t2.micro"
+}
+
+resource "aws_instance" "api" {
+  ami           = "ami-222"
+  instance_type = "t2.small"
+}`,
+			wantCount: 2,
+			wantErr:   false,
+		},
+		{
+			name: "HCL with non-instance resources",
+			hcl: `
+resource "aws_s3_bucket" "bucket" {
+  bucket = "my-bucket"
+}
+
+resource "aws_instance" "web" {
+  ami           = "ami-123"
+  instance_type = "t2.micro"
+}`,
+			wantCount: 1,
+			wantErr:   false,
+		},
+		{
+			name:      "empty HCL",
+			hcl:       ``,
+			wantCount: 0,
+			wantErr:   false,
+		},
+		{
+			name:      "invalid HCL",
+			hcl:       `resource "aws_instance" "web" {`,
+			wantCount: 0,
+			wantErr:   true,
+		},
+	}
+
+	p := NewParser()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			instances, err := p.ParseHCL([]byte(tt.hcl), "test.tf")
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseHCL() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr && len(instances) != tt.wantCount {
+				t.Errorf("ParseHCL() returned %d instances, want %d", len(instances), tt.wantCount)
+			}
+		})
+	}
+}
+
+func TestParser_ParseHCL_AttributeMapping(t *testing.T) {
+	hcl := `
+resource "aws_instance" "web" {
+  ami                    = "ami-abc123"
+  instance_type          = "t3.medium"
+  availability_zone      = "us-west-2a"
+  subnet_id              = "subnet-xyz"
+  key_name               = "production-key"
+  ebs_optimized          = true
+  monitoring             = true
+  iam_instance_profile   = "WebServerRole"
+  vpc_security_group_ids = ["sg-111", "sg-222"]
+
+  tags = {
+    Name        = "production"
+    Environment = "prod"
+  }
+
+  root_block_device {
+    volume_size           = 100
+    volume_type           = "gp3"
+    delete_on_termination = true
+    encrypted             = true
+    iops                  = 3000
+    throughput            = 125
+  }
+}`
+
+	p := NewParser()
+	instances, err := p.ParseHCL([]byte(hcl), "test.tf")
+	if err != nil {
+		t.Fatalf("ParseHCL() error = %v", err)
+	}
+
+	inst, ok := instances["web"]
+	if !ok {
+		t.Fatal("Instance 'web' not found")
+	}
+
+	tests := []struct {
+		name string
+		got  any
+		want any
+	}{
+		{"InstanceID", inst.InstanceID, "web"},
+		{"AMI", inst.AMI, "ami-abc123"},
+		{"InstanceType", inst.InstanceType, "t3.medium"},
+		{"AvailabilityZone", inst.AvailabilityZone, "us-west-2a"},
+		{"SubnetID", inst.SubnetID, "subnet-xyz"},
+		{"KeyName", inst.KeyName, "production-key"},
+		{"EBSOptimized", inst.EBSOptimized, true},
+		{"Monitoring", inst.Monitoring, true},
+		{"IAMInstanceProfile", inst.IAMInstanceProfile, "WebServerRole"},
+		{"SecurityGroups count", len(inst.SecurityGroups), 2},
+		{"Tags count", len(inst.Tags), 2},
+		{"RootBlockDevice.VolumeSize", inst.RootBlockDevice.VolumeSize, 100},
+		{"RootBlockDevice.VolumeType", inst.RootBlockDevice.VolumeType, "gp3"},
+		{"RootBlockDevice.Encrypted", inst.RootBlockDevice.Encrypted, true},
+		{"RootBlockDevice.IOPS", inst.RootBlockDevice.IOPS, 3000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Errorf("%s = %v, want %v", tt.name, tt.got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_ParseHCLFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	hclPath := filepath.Join(tmpDir, "main.tf")
+
+	hclContent := `
+resource "aws_instance" "test" {
+  ami           = "ami-test123"
+  instance_type = "t2.micro"
+}`
+
+	if err := os.WriteFile(hclPath, []byte(hclContent), 0o644); err != nil {
+		t.Fatalf("Failed to create temp HCL file: %v", err)
+	}
+
+	p := NewParser()
+	instances, err := p.ParseHCLFile(hclPath)
+	if err != nil {
+		t.Fatalf("ParseHCLFile() error = %v", err)
+	}
+
+	if len(instances) != 1 {
+		t.Errorf("ParseHCLFile() returned %d instances, want 1", len(instances))
+	}
+
+	if _, ok := instances["test"]; !ok {
+		t.Error("Instance 'test' not found")
+	}
+}
+
+func TestParser_ParseHCLFile_NotFound(t *testing.T) {
+	p := NewParser()
+	_, err := p.ParseHCLFile("/nonexistent/path/main.tf")
+	if err == nil {
+		t.Error("ParseHCLFile() expected error for nonexistent file")
+	}
+}
+
+func TestParser_ParseFile_TFExtension(t *testing.T) {
+	tmpDir := t.TempDir()
+	hclPath := filepath.Join(tmpDir, "main.tf")
+
+	hclContent := `
+resource "aws_instance" "web" {
+  ami           = "ami-123"
+  instance_type = "t2.micro"
+}`
+
+	if err := os.WriteFile(hclPath, []byte(hclContent), 0o644); err != nil {
+		t.Fatalf("Failed to create temp HCL file: %v", err)
+	}
+
+	p := NewParser()
+	instances, err := p.ParseFile(hclPath)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+
+	if len(instances) != 1 {
+		t.Errorf("ParseFile() returned %d instances, want 1", len(instances))
+	}
+}
+
+func TestParser_ParseHCL_WithProviderAndTerraformBlocks(t *testing.T) {
+	hcl := `
+terraform {
+  required_version = ">= 1.0.0"
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "web" {
+  ami           = "ami-123"
+  instance_type = "t2.micro"
+}`
+
+	p := NewParser()
+	instances, err := p.ParseHCL([]byte(hcl), "test.tf")
+	if err != nil {
+		t.Fatalf("ParseHCL() error = %v", err)
+	}
+
+	if len(instances) != 1 {
+		t.Errorf("ParseHCL() returned %d instances, want 1", len(instances))
+	}
+}
