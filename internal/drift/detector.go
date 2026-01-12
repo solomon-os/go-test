@@ -1,4 +1,19 @@
 // Package drift provides functionality to detect configuration drift between AWS and Terraform.
+//
+// This package implements drift detection by comparing EC2 instance configurations
+// from AWS (actual state) against Terraform configurations (desired state).
+// It supports concurrent processing of multiple instances using a bounded worker pool
+// to prevent resource exhaustion.
+//
+// Example usage:
+//
+//	detector := drift.NewDetector(nil, drift.WithConcurrency(10))
+//	result := detector.Detect(awsInstance, tfInstance)
+//	if result.HasDrift {
+//	    for _, attr := range result.DriftedAttrs {
+//	        fmt.Printf("Drift in %s: AWS=%v, TF=%v\n", attr.Path, attr.AWSValue, attr.TerraformValue)
+//	    }
+//	}
 package drift
 
 import (
@@ -7,10 +22,10 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/solomon-os/go-test/internal/logger"
 	"github.com/solomon-os/go-test/internal/models"
+	"github.com/solomon-os/go-test/internal/worker"
 )
 
 var DefaultAttributes = []string{
@@ -39,16 +54,67 @@ type Detector interface {
 	GetAttributes() []string
 }
 
+// DefaultConcurrency is the default number of concurrent drift detection operations.
+const DefaultConcurrency = 10
+
 // DefaultDetector performs drift detection between AWS and Terraform configurations.
+// It supports concurrent processing with bounded concurrency via a worker pool.
 type DefaultDetector struct {
-	attributes []string
+	attributes  []string
+	concurrency int
+	pool        *worker.Pool
 }
 
-func NewDetector(attributes []string) *DefaultDetector {
-	if len(attributes) == 0 {
-		attributes = DefaultAttributes
+// DetectorOption is a functional option for configuring the DefaultDetector.
+type DetectorOption func(*DefaultDetector)
+
+// WithConcurrency sets the maximum number of concurrent drift detection operations.
+// If n <= 0, DefaultConcurrency is used.
+func WithConcurrency(n int) DetectorOption {
+	return func(d *DefaultDetector) {
+		if n > 0 {
+			d.concurrency = n
+		}
 	}
-	return &DefaultDetector{attributes: attributes}
+}
+
+// WithAttributes sets the list of attributes to check for drift.
+func WithAttributes(attrs []string) DetectorOption {
+	return func(d *DefaultDetector) {
+		if len(attrs) > 0 {
+			d.attributes = attrs
+		}
+	}
+}
+
+// NewDetector creates a new drift detector with the specified attributes and options.
+// If attributes is nil or empty, DefaultAttributes is used.
+// If no concurrency option is provided, DefaultConcurrency is used.
+func NewDetector(attributes []string, opts ...DetectorOption) *DefaultDetector {
+	d := &DefaultDetector{
+		attributes:  attributes,
+		concurrency: DefaultConcurrency,
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(d)
+	}
+
+	// Use default attributes if none provided
+	if len(d.attributes) == 0 {
+		d.attributes = DefaultAttributes
+	}
+
+	// Create worker pool
+	d.pool = worker.NewPool(d.concurrency)
+
+	return d
+}
+
+// Concurrency returns the configured concurrency level.
+func (d *DefaultDetector) Concurrency() int {
+	return d.concurrency
 }
 
 func (d *DefaultDetector) Detect(awsInstance, tfInstance *models.EC2Instance) *models.DriftResult {
@@ -106,84 +172,86 @@ func (d *DefaultDetector) Detect(awsInstance, tfInstance *models.EC2Instance) *m
 	return result
 }
 
+// DetectMultiple performs drift detection across multiple instances using a bounded worker pool.
+// This method uses the configured concurrency limit to prevent resource exhaustion
+// when processing large numbers of instances.
 func (d *DefaultDetector) DetectMultiple(
 	ctx context.Context,
 	awsInstances, tfInstances map[string]*models.EC2Instance,
 ) *models.DriftReport {
 	logger.Info(
 		"starting drift detection",
-		"aws_instances",
-		len(awsInstances),
-		"tf_instances",
-		len(tfInstances),
+		"aws_instances", len(awsInstances),
+		"tf_instances", len(tfInstances),
+		"concurrency", d.concurrency,
 	)
+
 	report := &models.DriftReport{
 		TotalInstances: len(awsInstances),
-		Results:        make([]models.DriftResult, 0),
+		Results:        make([]models.DriftResult, 0, len(awsInstances)),
 	}
 
-	var (
-		mu      sync.Mutex
-		wg      sync.WaitGroup
-		results = make(chan models.DriftResult, len(awsInstances))
-	)
-
-	for instanceID, awsInst := range awsInstances {
-		wg.Add(1)
-		go func(id string, aws *models.EC2Instance) {
-			defer wg.Done()
-
-			select {
-			case <-ctx.Done():
-				logger.Warn("context canceled during drift detection", "instance_id", id)
-				results <- models.DriftResult{
-					InstanceID: id,
-					Error:      "context canceled",
-				}
-				return
-			default:
-			}
-
-			tfInst, ok := tfInstances[id]
-			if !ok {
-				logger.Warn("instance not found in Terraform state", "instance_id", id)
-				results <- models.DriftResult{
-					InstanceID: id,
-					HasDrift:   true,
-					Error:      "instance not found in Terraform state",
-				}
-				return
-			}
-
-			result := d.Detect(aws, tfInst)
-			results <- *result
-		}(instanceID, awsInst)
+	if len(awsInstances) == 0 {
+		return report
 	}
 
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
+	// Create input for worker pool
+	type detectInput struct {
+		id  string
+		aws *models.EC2Instance
+	}
 
-	for result := range results {
-		mu.Lock()
-		report.Results = append(report.Results, result)
-		if result.HasDrift {
+	inputs := make([]detectInput, 0, len(awsInstances))
+	for id, aws := range awsInstances {
+		inputs = append(inputs, detectInput{id: id, aws: aws})
+	}
+
+	// Execute drift detection using worker pool
+	results := worker.RunFunc(ctx, d.pool, inputs, func(ctx context.Context, input detectInput) (models.DriftResult, error) {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			logger.Warn("context canceled during drift detection", "instance_id", input.id)
+			return models.DriftResult{
+				InstanceID: input.id,
+				Error:      "context canceled",
+			}, nil
+		default:
+		}
+
+		// Check if instance exists in Terraform state
+		tfInst, ok := tfInstances[input.id]
+		if !ok {
+			logger.Warn("instance not found in Terraform state", "instance_id", input.id)
+			return models.DriftResult{
+				InstanceID: input.id,
+				HasDrift:   true,
+				Error:      "instance not found in Terraform state",
+			}, nil
+		}
+
+		// Perform drift detection
+		result := d.Detect(input.aws, tfInst)
+		return *result, nil
+	})
+
+	// Collect results
+	for _, r := range results {
+		report.Results = append(report.Results, r.Value)
+		if r.Value.HasDrift {
 			report.DriftedInstances++
 		}
-		mu.Unlock()
 	}
 
+	// Sort results by instance ID for consistent output
 	sort.Slice(report.Results, func(i, j int) bool {
 		return report.Results[i].InstanceID < report.Results[j].InstanceID
 	})
 
 	logger.Info(
 		"drift detection complete",
-		"total",
-		report.TotalInstances,
-		"drifted",
-		report.DriftedInstances,
+		"total", report.TotalInstances,
+		"drifted", report.DriftedInstances,
 	)
 
 	return report

@@ -43,6 +43,7 @@ var (
 	attributes  []string
 	outputFmt   string
 	timeout     time.Duration
+	concurrency int
 )
 
 var (
@@ -95,6 +96,7 @@ func setup() {
 	rootCmd.Flags().
 		StringVarP(&outputFmt, "output", "o", "text", "Output format: text, table, json")
 	rootCmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout for AWS API calls")
+	rootCmd.Flags().IntVar(&concurrency, "concurrency", drift.DefaultConcurrency, "Maximum concurrent drift checks")
 	must(rootCmd.MarkFlagRequired("tf-state"))
 
 	rootCmd.AddCommand(detectCmd)
@@ -261,7 +263,7 @@ func getDetector() drift.Detector {
 	if defaultApp.Detector != nil {
 		return defaultApp.Detector
 	}
-	return drift.NewDetector(attributes)
+	return drift.NewDetector(attributes, drift.WithConcurrency(concurrency))
 }
 
 func getReporter() reporter.DriftReporter {
