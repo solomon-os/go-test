@@ -1,78 +1,57 @@
-# EC2 Drift Detector - Implementation Summary
+# What I Built
 
-## 1. Structured Error Types
+## 1. Better Error Handling
 
-Created custom error types with categories, retryability, and error wrapping for better debugging.
+Made errors more useful - now they tell you what went wrong, where, and if you should retry.
 
-**Files:**
-- `internal/errors/errors.go` - Base DriftError interface and BaseError type
-- `internal/aws/errors.go` - AWS-specific errors (rate limiting, access denied, not found)
-- `internal/terraform/errors.go` - Parse and validation errors
-- `internal/drift/errors.go` - Detection and aggregate errors
+- `internal/errors/errors.go` - the base stuff
+- `internal/aws/errors.go` - AWS errors like rate limits and access denied
+- `internal/terraform/errors.go` - parsing errors
+- `internal/drift/errors.go` - drift detection errors
 
----
+## 2. Limited Goroutines
 
-## 2. Limited Concurrent Goroutines
+Before, the code spawned unlimited goroutines which could crash things. Now it uses a worker pool that limits how many run at once.
 
-Implemented a bounded worker pool using semaphore pattern to prevent resource exhaustion.
+- `internal/worker/pool.go` - the worker pool
+- `internal/drift/detector.go` - now uses the pool
 
-**Files:**
-- `internal/worker/pool.go` - Generic worker pool with Run, Map, ForEach functions
-- `internal/drift/detector.go` - Updated to use worker pool with WithConcurrency option
+## 3. Retry Logic
 
----
+AWS calls fail sometimes. Now they automatically retry with exponential backoff instead of just dying.
 
-## 3. Retry Logic for Transient Failures
+- `internal/retry/retry.go` - generic retry logic
+- `internal/aws/ec2.go` - wrapped the API calls
 
-Added exponential backoff with jitter for handling temporary AWS API failures.
+## 4. Documentation
 
-**Files:**
-- `internal/retry/retry.go` - Generic retry with configurable attempts, delays, and backoff
-- `internal/aws/ec2.go` - AWS API calls wrapped with retry logic
+Added godoc comments to all the new code so people know what things do.
 
----
+## 5. Repository Pattern
 
-## 4. Comprehensive Godoc Comments
+Separated data fetching from business logic. Makes testing way easier.
 
-Added documentation to all exported types, functions, and packages.
+- `internal/repository/interfaces.go` - the contracts
+- `internal/repository/aws/ec2_repository.go` - gets data from AWS
+- `internal/repository/terraform/repository.go` - gets data from tfstate
 
-**Files:**
-- All new packages include package-level and function-level documentation
+## 6. Extensible Registries
 
----
+Want to add a new comparator or output format? Just register it. No need to touch existing code.
 
-## 5. DDD & Repository Pattern
+- `internal/drift/comparator/comparator.go` - compare values different ways
+- `internal/reporter/formatter/formatter.go` - output as JSON, table, text, etc.
 
-Abstracted data access from business logic with repository interfaces.
+## 7. Factory Pattern
 
-**Files:**
-- `internal/repository/interfaces.go` - EC2Repository and TerraformRepository contracts
-- `internal/repository/aws/ec2_repository.go` - AWS implementation
-- `internal/repository/terraform/repository.go` - Terraform state implementation
+One place to create all the components. Also has a builder for injecting mocks in tests.
 
----
+- `internal/factory/factory.go` - creates everything
+- `internal/factory/container.go` - for testing with mocks
 
-## 6. SOLID - Open/Closed Principle
+## Tests
 
-Made code extensible through registries for comparators and formatters.
-
-**Files:**
-- `internal/drift/comparator/comparator.go` - Comparator registry with String, Slice, Map, Numeric, Bool comparators
-- `internal/reporter/formatter/formatter.go` - Formatter registry with JSON, Table, Text, Compact formatters
-
----
-
-## 7. Dependency Injection & Factory Pattern
-
-Centralized component creation with optional DI container for testing.
-
-**Files:**
-- `internal/factory/factory.go` - Factory for creating all components
-- `internal/factory/container.go` - DI container and Builder for testing
-
----
-
-## Test Files
+All the new stuff has tests:
 
 - `internal/errors/errors_test.go`
 - `internal/retry/retry_test.go`
@@ -84,10 +63,4 @@ Centralized component creation with optional DI container for testing.
 - `internal/repository/terraform/repository_test.go`
 - `internal/factory/factory_test.go`
 
----
-
-## Run Tests
-
-```bash
-go test ./...
-```
+Run them with `go test ./...`
