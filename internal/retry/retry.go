@@ -89,7 +89,11 @@ var FastConfig = Config{
 // Do executes an operation with retry logic.
 // The operation is retried according to the config until it succeeds,
 // the maximum attempts are reached, or the context is canceled.
-func Do[T any](ctx context.Context, cfg Config, operation func(context.Context) (T, error)) (T, error) {
+func Do[T any](
+	ctx context.Context,
+	cfg Config,
+	operation func(context.Context) (T, error),
+) (T, error) {
 	var zero T
 	var lastErr error
 

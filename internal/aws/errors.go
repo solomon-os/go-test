@@ -72,7 +72,7 @@ func NewAWSError(operation string, cause error, opts ...AWSErrorOption) *AWSErro
 	}
 
 	// Set retryable based on error type
-	e.BaseError = *e.BaseError.WithRetryable(IsRetryableError(cause))
+	e.BaseError = *e.WithRetryable(IsRetryableError(cause))
 
 	return e
 }

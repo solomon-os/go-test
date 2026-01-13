@@ -22,7 +22,6 @@ func TestDo(t *testing.T) {
 			atomic.AddInt32(&attempts, 1)
 			return "success", nil
 		})
-
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -50,7 +49,6 @@ func TestDo(t *testing.T) {
 			}
 			return 42, nil
 		})
-
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -171,7 +169,6 @@ func TestDoSimple(t *testing.T) {
 			executed = true
 			return nil
 		})
-
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}

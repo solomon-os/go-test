@@ -79,7 +79,7 @@ type Result[R any] struct {
 // Run executes jobs with bounded concurrency, maintaining result order.
 // Jobs are executed concurrently but results are returned in the same order
 // as the input jobs slice.
-func Run[T any, R any](ctx context.Context, pool *Pool, jobs []Job[T, R]) []Result[R] {
+func Run[T, R any](ctx context.Context, pool *Pool, jobs []Job[T, R]) []Result[R] {
 	if len(jobs) == 0 {
 		return nil
 	}
@@ -138,7 +138,7 @@ func Run[T any, R any](ctx context.Context, pool *Pool, jobs []Job[T, R]) []Resu
 
 // RunFunc is a convenience function that runs a single function over multiple inputs.
 // It's useful when you have the same operation to apply to many items.
-func RunFunc[T any, R any](
+func RunFunc[T, R any](
 	ctx context.Context,
 	pool *Pool,
 	inputs []T,
@@ -157,7 +157,7 @@ func RunFunc[T any, R any](
 // Map applies a function to each input and collects successful results.
 // Unlike Run, Map returns only the successful results and an aggregated error
 // for any failures. The order of successful results may not match input order.
-func Map[T any, R any](
+func Map[T, R any](
 	ctx context.Context,
 	pool *Pool,
 	inputs []T,

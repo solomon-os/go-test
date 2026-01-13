@@ -32,7 +32,7 @@ func TestBaseError(t *testing.T) {
 		cause := errors.New("underlying error")
 		err := New(CategoryDrift, "wrapper").WithCause(cause)
 
-		if err.Unwrap() != cause {
+		if !errors.Is(err.Unwrap(), cause) {
 			t.Error("expected cause to be set")
 		}
 		if err.Error() != "wrapper: underlying error" {
@@ -65,7 +65,7 @@ func TestWrap(t *testing.T) {
 		if err.Category() != CategoryAWS {
 			t.Errorf("expected category %s, got %s", CategoryAWS, err.Category())
 		}
-		if err.Unwrap() != cause {
+		if !errors.Is(err.Unwrap(), cause) {
 			t.Error("expected cause to be wrapped")
 		}
 	})
@@ -174,7 +174,7 @@ func TestAggregateError(t *testing.T) {
 		errs := []error{first, errors.New("second")}
 		aggErr := NewAggregateError(CategoryDrift, "failed", errs)
 
-		if aggErr.First() != first {
+		if !errors.Is(aggErr.First(), first) {
 			t.Error("expected First to return first error")
 		}
 	})

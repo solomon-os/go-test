@@ -144,7 +144,13 @@ func (c *Client) GetInstances(
 			}
 		}
 
-		logger.Info("fetched EC2 instances", "requested", len(instanceIDs), "returned", len(instances))
+		logger.Info(
+			"fetched EC2 instances",
+			"requested",
+			len(instanceIDs),
+			"returned",
+			len(instances),
+		)
 		return instances, nil
 	})
 }

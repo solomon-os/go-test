@@ -39,9 +39,18 @@ func TestRun(t *testing.T) {
 		pool := NewPool(2)
 
 		jobs := []Job[int, int]{
-			{Input: 1, Execute: func(ctx context.Context, n int) (int, error) { return n * 2, nil }},
-			{Input: 2, Execute: func(ctx context.Context, n int) (int, error) { return n * 2, nil }},
-			{Input: 3, Execute: func(ctx context.Context, n int) (int, error) { return n * 2, nil }},
+			{
+				Input:   1,
+				Execute: func(ctx context.Context, n int) (int, error) { return n * 2, nil },
+			},
+			{
+				Input:   2,
+				Execute: func(ctx context.Context, n int) (int, error) { return n * 2, nil },
+			},
+			{
+				Input:   3,
+				Execute: func(ctx context.Context, n int) (int, error) { return n * 2, nil },
+			},
 		}
 
 		results := Run(context.Background(), pool, jobs)
@@ -116,7 +125,10 @@ func TestRun(t *testing.T) {
 
 		expectedErr := errors.New("job error")
 		jobs := []Job[int, int]{
-			{Input: 1, Execute: func(ctx context.Context, n int) (int, error) { return 0, expectedErr }},
+			{
+				Input:   1,
+				Execute: func(ctx context.Context, n int) (int, error) { return 0, expectedErr },
+			},
 		}
 
 		results := Run(context.Background(), pool, jobs)
@@ -171,9 +183,14 @@ func TestRunFunc(t *testing.T) {
 		pool := NewPool(2)
 
 		inputs := []string{"a", "bb", "ccc"}
-		results := RunFunc(context.Background(), pool, inputs, func(ctx context.Context, s string) (int, error) {
-			return len(s), nil
-		})
+		results := RunFunc(
+			context.Background(),
+			pool,
+			inputs,
+			func(ctx context.Context, s string) (int, error) {
+				return len(s), nil
+			},
+		)
 
 		if len(results) != 3 {
 			t.Fatalf("expected 3 results, got %d", len(results))
@@ -196,10 +213,14 @@ func TestMap(t *testing.T) {
 		pool := NewPool(2)
 
 		inputs := []int{1, 2, 3}
-		values, err := Map(context.Background(), pool, inputs, func(ctx context.Context, n int) (int, error) {
-			return n * 2, nil
-		})
-
+		values, err := Map(
+			context.Background(),
+			pool,
+			inputs,
+			func(ctx context.Context, n int) (int, error) {
+				return n * 2, nil
+			},
+		)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -212,12 +233,17 @@ func TestMap(t *testing.T) {
 		pool := NewPool(2)
 
 		inputs := []int{1, 2, 3}
-		_, err := Map(context.Background(), pool, inputs, func(ctx context.Context, n int) (int, error) {
-			if n == 2 {
-				return 0, errors.New("error on 2")
-			}
-			return n * 2, nil
-		})
+		_, err := Map(
+			context.Background(),
+			pool,
+			inputs,
+			func(ctx context.Context, n int) (int, error) {
+				if n == 2 {
+					return 0, errors.New("error on 2")
+				}
+				return n * 2, nil
+			},
+		)
 
 		if err == nil {
 			t.Error("expected error")
@@ -235,7 +261,6 @@ func TestForEach(t *testing.T) {
 			atomic.AddInt32(&count, 1)
 			return nil
 		})
-
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}

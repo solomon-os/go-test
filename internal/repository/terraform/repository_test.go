@@ -2,13 +2,14 @@ package terraform
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/solomon-os/go-test/internal/models"
 	"github.com/solomon-os/go-test/internal/repository"
 )
 
-// mockParser implements terraform.StateParser for testing
+// mockParser implements terraform.StateParser for testing.
 type mockParser struct {
 	instances map[string]*models.EC2Instance
 	parseErr  error
@@ -64,7 +65,7 @@ func TestRepository_GetByID(t *testing.T) {
 		repo := NewRepository(parser, "/path/to/state.tfstate")
 
 		_, err := repo.GetByID(context.Background(), "")
-		if err != repository.ErrInvalidID {
+		if !errors.Is(err, repository.ErrInvalidID) {
 			t.Errorf("expected ErrInvalidID, got %v", err)
 		}
 	})
@@ -93,7 +94,7 @@ func TestRepository_GetByID(t *testing.T) {
 		repo := NewRepository(parser, "/path/to/state.tfstate")
 
 		_, err := repo.GetByID(context.Background(), "i-nonexistent")
-		if err != repository.ErrNotFound {
+		if !errors.Is(err, repository.ErrNotFound) {
 			t.Errorf("expected ErrNotFound, got %v", err)
 		}
 	})

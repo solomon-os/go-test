@@ -230,28 +230,39 @@ func TestConfig_WithRetryConfig(t *testing.T) {
 	}
 }
 
-// Mock implementations for testing
+// Mock implementations for testing.
 type mockEC2Repository struct{}
 
 func (m *mockEC2Repository) GetByID(ctx context.Context, id string) (*models.EC2Instance, error) {
 	return nil, nil
 }
 
-func (m *mockEC2Repository) GetByIDs(ctx context.Context, ids []string) ([]*models.EC2Instance, error) {
+func (m *mockEC2Repository) GetByIDs(
+	ctx context.Context,
+	ids []string,
+) ([]*models.EC2Instance, error) {
 	return nil, nil
 }
 
-func (m *mockEC2Repository) List(ctx context.Context, filters ...repository.Filter) ([]*models.EC2Instance, error) {
+func (m *mockEC2Repository) List(
+	ctx context.Context,
+	filters ...repository.Filter,
+) ([]*models.EC2Instance, error) {
 	return nil, nil
 }
 
 type mockTerraformRepository struct{}
 
-func (m *mockTerraformRepository) GetByID(ctx context.Context, id string) (*models.EC2Instance, error) {
+func (m *mockTerraformRepository) GetByID(
+	ctx context.Context,
+	id string,
+) (*models.EC2Instance, error) {
 	return nil, nil
 }
 
-func (m *mockTerraformRepository) GetAll(ctx context.Context) (map[string]*models.EC2Instance, error) {
+func (m *mockTerraformRepository) GetAll(
+	ctx context.Context,
+) (map[string]*models.EC2Instance, error) {
 	return nil, nil
 }
 

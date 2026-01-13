@@ -21,7 +21,7 @@ type ParseError struct {
 }
 
 // NewParseError creates a new ParseError with the given details.
-func NewParseError(filePath string, fileType string, cause error) *ParseError {
+func NewParseError(filePath, fileType string, cause error) *ParseError {
 	return &ParseError{
 		BaseError: *errors.Wrap(cause, errors.CategoryTerraform,
 			fmt.Sprintf("failed to parse %s file", fileType)),
@@ -66,7 +66,9 @@ type ValidationError struct {
 }
 
 // NewValidationError creates a new ValidationError.
-func NewValidationError(resourceType, resourceName, field, expected, actual string) *ValidationError {
+func NewValidationError(
+	resourceType, resourceName, field, expected, actual string,
+) *ValidationError {
 	return &ValidationError{
 		BaseError: *errors.New(errors.CategoryTerraform,
 			fmt.Sprintf("invalid value for %s.%s.%s", resourceType, resourceName, field)),

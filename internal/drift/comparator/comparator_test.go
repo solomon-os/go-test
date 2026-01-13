@@ -291,7 +291,7 @@ func TestTagComparator(t *testing.T) {
 		b := map[string]string{
 			"Name":                      "my-instance",
 			"Environment":               "production",
-			"aws:autoscaling:groupName": "group-2", // Different but ignored
+			"aws:autoscaling:groupName": "group-2",    // Different but ignored
 			"timestamp":                 "2024-02-01", // Different but ignored
 		}
 
@@ -342,5 +342,5 @@ func (c *customComparator) Compare(a, b any) bool {
 
 type alwaysTrueComparator struct{}
 
-func (c *alwaysTrueComparator) Name() string         { return "always-true" }
+func (c *alwaysTrueComparator) Name() string          { return "always-true" }
 func (c *alwaysTrueComparator) Compare(a, b any) bool { return true }

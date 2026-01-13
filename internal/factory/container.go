@@ -1,5 +1,4 @@
 // Package factory provides factories for creating configured application components.
-
 package factory
 
 import (

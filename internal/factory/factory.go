@@ -190,7 +190,10 @@ func (f *Factory) CreateDriftService(ctx context.Context) (*DriftService, error)
 
 // DetectDrift performs drift detection for the specified instances.
 // If instanceIDs is empty, all instances from the Terraform state are checked.
-func (s *DriftService) DetectDrift(ctx context.Context, instanceIDs []string) (*models.DriftReport, error) {
+func (s *DriftService) DetectDrift(
+	ctx context.Context,
+	instanceIDs []string,
+) (*models.DriftReport, error) {
 	// Load Terraform state
 	tfInstances, err := s.tfRepo.GetAll(ctx)
 	if err != nil {

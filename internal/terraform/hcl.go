@@ -136,7 +136,11 @@ func (p *Parser) parseHCLResource(block *hcl.Block, name string) (*models.EC2Ins
 	return instance, nil
 }
 
-func (p *Parser) applyHCLAttributes(instance *models.EC2Instance, attrs hcl.Attributes, ctx *hcl.EvalContext) {
+func (p *Parser) applyHCLAttributes(
+	instance *models.EC2Instance,
+	attrs hcl.Attributes,
+	ctx *hcl.EvalContext,
+) {
 	for attrName, attr := range attrs {
 		val, diags := attr.Expr.Value(ctx)
 		if diags.HasErrors() {
@@ -174,7 +178,10 @@ func (p *Parser) setInstanceAttribute(instance *models.EC2Instance, name string,
 func (p *Parser) parseRootBlockDevice(block *hcl.Block) (models.BlockDevice, error) {
 	content, diags := block.Body.Content(rootBlockDeviceSchema)
 	if diags.HasErrors() {
-		return models.BlockDevice{}, fmt.Errorf("failed to decode root_block_device: %s", diags.Error())
+		return models.BlockDevice{}, fmt.Errorf(
+			"failed to decode root_block_device: %s",
+			diags.Error(),
+		)
 	}
 
 	bd := models.BlockDevice{}

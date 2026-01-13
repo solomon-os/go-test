@@ -96,7 +96,8 @@ func setup() {
 	rootCmd.Flags().
 		StringVarP(&outputFmt, "output", "o", "text", "Output format: text, table, json")
 	rootCmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout for AWS API calls")
-	rootCmd.Flags().IntVar(&concurrency, "concurrency", drift.DefaultConcurrency, "Maximum concurrent drift checks")
+	rootCmd.Flags().
+		IntVar(&concurrency, "concurrency", drift.DefaultConcurrency, "Maximum concurrent drift checks")
 	must(rootCmd.MarkFlagRequired("tf-state"))
 
 	rootCmd.AddCommand(detectCmd)

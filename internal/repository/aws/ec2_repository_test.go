@@ -2,13 +2,14 @@ package aws
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/solomon-os/go-test/internal/models"
 	"github.com/solomon-os/go-test/internal/repository"
 )
 
-// mockEC2Client implements aws.EC2Client for testing
+// mockEC2Client implements aws.EC2Client for testing.
 type mockEC2Client struct {
 	instances map[string]*models.EC2Instance
 	getErr    error
@@ -54,7 +55,7 @@ func TestEC2Repository_GetByID(t *testing.T) {
 		repo := NewEC2Repository(nil)
 
 		_, err := repo.GetByID(context.Background(), "")
-		if err != repository.ErrInvalidID {
+		if !errors.Is(err, repository.ErrInvalidID) {
 			t.Errorf("expected ErrInvalidID, got %v", err)
 		}
 	})
